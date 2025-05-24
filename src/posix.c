@@ -48,6 +48,14 @@ PyObject *PyPosixFath_richcompare(PyPosixFathObject *self, PyObject *other, int 
 
 // MARK: Methods
 
+Py_UCS4 PyPosixFath_last(PyPosixFathObject *self)
+{
+    Py_ssize_t length = PyUnicode_GET_LENGTH(self->inner);
+    int kind = PyUnicode_KIND(self->inner);
+    void *data = PyUnicode_DATA(self->inner);
+    return PyUnicode_READ(kind, data, length - 1);
+}
+
 PyObject *PyPosixFath_name(PyPosixFathObject *self)
 {
     Py_ssize_t length = PyUnicode_GET_LENGTH(self->inner);
@@ -111,9 +119,54 @@ PyObject *PyPosixFath_parent(PyPosixFathObject *self)
     }
 }
 
+PyObject *PyPosixFath_joinpath(PyPosixFathObject *self, PyObject *tail)
+{
+    PyObject *tail_inner;
+    PyObject *joined_inner = NULL;
+    PyObject *joined = NULL;
+
+    if (PyPosixFath_CheckExact(tail))
+    {
+        tail_inner = (PyObject *)((PyPosixFathObject *)tail)->inner;
+        Py_INCREF(tail_inner);
+    }
+    else
+    {
+        tail_inner = PyOS_FSPath(tail);
+        if (!tail_inner)
+        {
+            return NULL;
+        }
+    }
+
+    const char *format = PyPosixFath_last(self) == '/' ? "%U%U" : "%U/%U";
+    joined_inner = PyUnicode_FromFormat(format, self->inner, tail_inner);
+    if (!joined_inner)
+    {
+        goto error;
+    }
+
+    joined = PyPosixFath((PyUnicodeObject *)joined_inner);
+    if (!joined)
+    {
+        goto error;
+    }
+
+    goto done;
+
+error:
+    Py_XDECREF(tail_inner);
+    Py_XDECREF(joined_inner);
+    Py_XDECREF(joined);
+
+done:
+    return joined;
+}
+
 // MARK: Declaration
 
 static PyMethodDef PyPosixFath_methods[] = {
+    {"joinpath", (PyCFunction)PyPosixFath_joinpath, METH_O, PyDoc_STR("Append another path")},
     {"__getstate__", (PyCFunction)PyFath_getstate, METH_NOARGS, PyDoc_STR("Serialize this fath for pickling")},
     {"__setstate__", (PyCFunction)PyFath_setstate, METH_O, PyDoc_STR("Deserialize this fath for pickling")},
     {NULL, NULL, 0, NULL},
@@ -123,6 +176,10 @@ static PyGetSetDef PyPosixFath_getset[] = {
     {"name", (getter)PyPosixFath_name, NULL, PyDoc_STR("Get the base name of the fath"), NULL},
     {"parent", (getter)PyPosixFath_parent, NULL, PyDoc_STR("Get the parent fath"), NULL},
     {NULL, NULL, NULL, NULL, NULL},
+};
+
+static PyNumberMethods PyPosixFath_as_number = {
+    .nb_true_divide = (PyCFunction)PyPosixFath_joinpath,
 };
 
 PyTypeObject PyPosixFath_Type = {
@@ -141,6 +198,7 @@ PyTypeObject PyPosixFath_Type = {
     .tp_repr = (reprfunc)PyPosixFath_repr,
     .tp_str = (reprfunc)PyFath_str,
     .tp_dealloc = (destructor)PyFath_dealloc,
+    .tp_as_number = &PyPosixFath_as_number,
     .tp_methods = PyPosixFath_methods,
     .tp_getset = PyPosixFath_getset,
 };
