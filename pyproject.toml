@@ -1,0 +1,21 @@
+[project]
+name = "fathlib"
+version = "0.1.0"
+description = "A faster pathlib"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = []
+
+[build-system]
+requires = ["setuptools"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+packages = ["fathlib"]
+
+[[tool.setuptools.ext-modules]]
+name = "fathlib.core"
+sources = ["src/fathlib.c", "src/generic.c", "src/posix.c"]
+include-dirs = ["include"]
+depends = ["include/generic.h", "include/posix.h"]
+extra-compile-args = ["-Wall", "-std=c17"]

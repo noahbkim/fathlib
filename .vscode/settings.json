@@ -1,0 +1,7 @@
+{
+    "files.associations": {
+        "posix.h": "c",
+        "generic.h": "c",
+        "complex": "c"
+    }
+}
