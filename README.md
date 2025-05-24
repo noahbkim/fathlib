@@ -2,9 +2,9 @@
 
 Python's `pathlib` is slow and has weird semantics. This is not a drop-in replacement, but instead a reimagining.
 
-```
-Python 3.13.3 (main, Apr  8 2025, 13:54:08) [Clang 17.0.0 (clang-1700.0.13.3)] on darwin
-Type "help", "copyright", "credits" or "license" for more information.
+```python console
+# Python 3.13.3 (main, Apr  8 2025, 13:54:08) [Clang 17.0.0 (clang-1700.0.13.3)] on darwin
+# Type "help", "copyright", "credits" or "license" for more information.
 >>> from pathlib import Path
 >>> from fathlib import Fath
 >>> p = Path("/the/quick/brown/fox.txt")
