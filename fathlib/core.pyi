@@ -3,7 +3,7 @@ from __future__ import annotations
 import os
 from typing import overload
 
-class PosixPath:
+class PosixFath:
     @overload
     def __init__(self) -> None: ...
     @overload
