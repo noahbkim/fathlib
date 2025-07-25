@@ -34,7 +34,7 @@ PyInit_core()
     }
 
     // Add a reference to our `Fath` types.
-    if (PyModule_AddObjectRef(module, "PosixFath", (PyObject *)&PyPosixFath_Type) < 0)
+    if (PyModule_AddObjectRef(module, "PurePosixFath", (PyObject *)&PyPosixFath_Type) < 0)
     {
         goto error;
     }
