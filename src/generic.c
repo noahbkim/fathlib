@@ -23,56 +23,6 @@ PyFathObject *PyFath_new(PyTypeObject *type, PyObject *args, PyObject *kwargs)
     return self;
 }
 
-int PyFath_init(PyFathObject *self, PyObject *args, PyObject *kwargs)
-{
-    if (kwargs)
-    {
-        PyErr_Format(PyExc_TypeError,
-                     "fathlib.Fath takes no keyword arguments");
-        return -1;
-    }
-
-    // Default constructor
-    Py_ssize_t nargs = PyTuple_GET_SIZE(args);
-    if (nargs == 0)
-    {
-        self->inner = (PyUnicodeObject *)PyUnicode_New(0, 0);
-        return 0;
-    }
-
-    if (nargs > 1)
-    {
-        PyErr_Format(PyExc_TypeError,
-                     "fathlib.Fath expected 1 argument, got %zd", nargs);
-        return -1;
-    }
-
-    // `__fsfath__` constructor
-    PyObject *arg = PyTuple_GET_ITEM(args, 0);
-    PyObject *fspath = PyOS_FSPath(arg);
-    if (!fspath)
-    {
-        return -1;
-    }
-    if (PyBytes_CheckExact(fspath))
-    {
-        PyErr_Format(PyExc_TypeError,
-                     "fathlib.Fath does not support bytes faths");
-        Py_DECREF(fspath);
-        return -1;
-    }
-    if (!PyUnicode_CheckExact(fspath))
-    {
-        PyErr_Format(PyExc_TypeError,
-                     "fathlib.Fath cannot be constructed from %T", fspath);
-        Py_DECREF(fspath);
-        return -1;
-    }
-
-    self->inner = (PyUnicodeObject *)fspath;
-    return 0;
-}
-
 PyObject *PyFath_str(PyFathObject *self)
 {
     Py_INCREF(self->inner);
