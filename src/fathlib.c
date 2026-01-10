@@ -37,12 +37,12 @@ PyInit_core()
         goto error;
     }
 
-    if (PyModule_AddObjectRef(module, "PurePosixFath", (PyObject *)&PyPosixFath_Type) < 0)
+    if (PyModule_AddObjectRef(module, "PosixFath", (PyObject *)&PyPosixFath_Type) < 0)
     {
         goto error;
     }
 
-    if (PyModule_AddObjectRef(module, "PureWindowsFath", (PyObject *)&PyWindowsFath_Type) < 0)
+    if (PyModule_AddObjectRef(module, "WindowsFath", (PyObject *)&PyWindowsFath_Type) < 0)
     {
         goto error;
     }

@@ -1,23 +1,48 @@
 from __future__ import annotations
 
-from .core import PurePosixFath as PurePosixFath
-from .core import PureWindowsFath as PureWindowsFath
+import ntpath
+import os
+import posixpath
 
-import sys
+from .core import PosixFath
+from .core import WindowsFath
 
-PosixFath = PurePosixFath
-WindowsFath = PureWindowsFath
 
-if sys.platform == "win32":
-    Fath = WindowsFath
+class PurePosixPath(PosixFath):
+    __slots__ = ()
+    _flavour = posixpath
+
+
+class PureWindowsPath(WindowsFath):
+    __slots__ = ()
+    _flavour = ntpath
+
+
+class PosixPath(PurePosixPath):
+    __slots__ = ()
+
+    if os.name == "nt":
+
+        def __new__(cls, *args, **kwargs):
+            raise NotImplementedError(
+                f"cannot instantiate {cls.__name__!r} on your system"
+            )
+
+
+class WindowsPath(PureWindowsPath):
+    __slots__ = ()
+
+    if os.name != "nt":
+
+        def __new__(cls, *args, **kwargs):
+            raise NotImplementedError(
+                f"cannot instantiate {cls.__name__!r} on your system"
+            )
+
+
+if os.name == "nt":
+    Path = WindowsPath
+    PureFath = PureWindowsPath
 else:
-    Fath = PosixFath
-
-# pathlib API
-
-PosixPath = PosixFath
-PurePosixPath = PurePosixFath
-WindowsPath = WindowsFath
-PureWindowsPath = PureWindowsFath
-Path = Fath
-PurePath = Fath
+    Path = PosixPath
+    PurePath = PurePosixPath
