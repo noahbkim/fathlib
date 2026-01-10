@@ -3,19 +3,6 @@
 
 #include "posix.h"
 
-PyObject *PyPosixFath(PyUnicodeObject *inner)
-{
-    PyPosixFathObject *self = PyObject_New(PyPosixFathObject, &PyPosixFath_Type);
-    if (!self)
-    {
-        Py_DECREF(inner);
-        return NULL;
-    }
-
-    self->inner = inner;
-    return (PyObject *)self;
-}
-
 // MARK: Intrinsic
 
 int PyPosixFath_init(PyFathObject *self, PyObject *args, PyObject *kwargs)
@@ -112,8 +99,12 @@ error:
 PyObject *PyPosixFath_repr(PyPosixFathObject *self)
 {
     PyObject *inner = PyUnicode_Type.tp_repr((PyObject *)self->inner);
-    PyObject *repr = PyUnicode_FromFormat("PosixFath(%U)", inner);
+    PyObject *cls = PyObject_Type(self);
+    PyObject *cls_name = PyType_GetName(cls);
+    PyObject *repr = PyUnicode_FromFormat("%U(%U)", cls_name, inner);
     Py_DECREF(inner);
+    Py_DECREF(cls);
+    Py_DECREF(cls_name);
     return repr;
 }
 
@@ -201,8 +192,14 @@ PyObject *PyPosixFath_parent(PyPosixFathObject *self)
 
     if (i > 0)
     {
-        PyObject *parent = PyUnicode_Substring((PyObject *)self->inner, 0, i);
-        return PyPosixFath((PyUnicodeObject *)parent);
+        PyObject *parent_inner = PyUnicode_Substring((PyObject *)self->inner, 0, i);
+        PyObject *cls = PyObject_Type((PyObject *)self);
+        if (!cls)
+        {
+            return NULL;
+        }
+
+        return PyObject_CallOneArg(cls, parent_inner);
     }
     else
     {
@@ -210,9 +207,14 @@ PyObject *PyPosixFath_parent(PyPosixFathObject *self)
     }
 }
 
+PyObject *PyPosixFath_as_posix(PyPosixFathObject *self)
+{
+    return Py_NewRef(self->inner);
+}
+
 PyObject *PyPosixFath_joinpath(PyObject *head, PyObject *tail)
 {
-    if (!PyPosixFath_CheckExact(head))
+    if (!PyPosixFath_Check(head))
     {
         Py_RETURN_NOTIMPLEMENTED;
     }
@@ -222,18 +224,10 @@ PyObject *PyPosixFath_joinpath(PyObject *head, PyObject *tail)
     PyObject *joined_inner = NULL;
     PyObject *joined = NULL;
 
-    if (PyPosixFath_CheckExact(tail))
+    tail_inner = PyOS_FSPath(tail);
+    if (!tail_inner)
     {
-        tail_inner = (PyObject *)((PyPosixFathObject *)tail)->inner;
-        Py_INCREF(tail_inner);
-    }
-    else
-    {
-        tail_inner = PyOS_FSPath(tail);
-        if (!tail_inner)
-        {
-            return NULL;
-        }
+        goto error;
     }
 
     const char *format = PyPosixFath_last(self) == '/' ? "%U%U" : "%U/%U";
@@ -243,7 +237,13 @@ PyObject *PyPosixFath_joinpath(PyObject *head, PyObject *tail)
         goto error;
     }
 
-    joined = PyPosixFath((PyUnicodeObject *)joined_inner);
+    PyObject *cls = PyObject_Type((PyObject *)self);
+    if (!cls)
+    {
+        return NULL;
+    }
+
+    joined = PyObject_CallOneArg(cls, joined_inner);
     if (!joined)
     {
         goto error;
@@ -263,6 +263,7 @@ done:
 // MARK: Declaration
 
 static PyMethodDef PyPosixFath_methods[] = {
+    {"as_posix", (PyCFunction)PyPosixFath_as_posix, METH_NOARGS, PyDoc_STR("Get the underlying string")},
     {"joinpath", (PyCFunction)PyPosixFath_joinpath, METH_O, PyDoc_STR("Append another path")},
     {"__getstate__", (PyCFunction)PyFath_getstate, METH_NOARGS, PyDoc_STR("Serialize this fath for pickling")},
     {"__setstate__", (PyCFunction)PyFath_setstate, METH_O, PyDoc_STR("Deserialize this fath for pickling")},

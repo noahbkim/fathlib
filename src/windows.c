@@ -3,19 +3,6 @@
 
 #include "windows.h"
 
-PyObject *PyWindowsFath(PyUnicodeObject *inner)
-{
-    PyWindowsFathObject *self = PyObject_New(PyWindowsFathObject, &PyWindowsFath_Type);
-    if (!self)
-    {
-        Py_DECREF(inner);
-        return NULL;
-    }
-
-    self->inner = inner;
-    return (PyObject *)self;
-}
-
 // MARK: Intrinsic
 
 int PyWindowsFath_init(PyFathObject *self, PyObject *args, PyObject *kwargs)
@@ -92,7 +79,7 @@ int PyWindowsFath_init(PyFathObject *self, PyObject *args, PyObject *kwargs)
             PyTuple_SET_ITEM(args, i, fspath);
         }
 
-        PyObject *slash = PyUnicode_FromString("/");
+        PyObject *slash = PyUnicode_FromString("\\");
         if (!slash)
         {
             goto error;
@@ -112,8 +99,12 @@ error:
 PyObject *PyWindowsFath_repr(PyWindowsFathObject *self)
 {
     PyObject *inner = PyUnicode_Type.tp_repr((PyObject *)self->inner);
-    PyObject *repr = PyUnicode_FromFormat("WindowsFath(%U)", inner);
+    PyObject *cls = PyObject_Type(self);
+    PyObject *cls_name = PyType_GetName(cls);
+    PyObject *repr = PyUnicode_FromFormat("%U(%U)", cls_name, inner);
     Py_DECREF(inner);
+    Py_DECREF(cls);
+    Py_DECREF(cls_name);
     return repr;
 }
 
@@ -155,7 +146,7 @@ PyObject *PyWindowsFath_name(PyWindowsFathObject *self)
 
     // Skip trailing slashes
     Py_ssize_t i = length - 1;
-    while (i >= 0 && PyUnicode_READ(kind, data, i) == '/')
+    while (i >= 0 && PyUnicode_READ(kind, data, i) == '\\')
     {
         i -= 1;
     }
@@ -163,7 +154,7 @@ PyObject *PyWindowsFath_name(PyWindowsFathObject *self)
     Py_ssize_t end = i + 1;
 
     // Read until the next slash or the start of the string.
-    while (i >= 0 && PyUnicode_READ(kind, data, i) != '/')
+    while (i >= 0 && PyUnicode_READ(kind, data, i) != '\\')
     {
         i -= 1;
     }
@@ -188,21 +179,27 @@ PyObject *PyWindowsFath_parent(PyWindowsFathObject *self)
 
     // Skip trailing slashes
     Py_ssize_t i = length - 1;
-    while (i >= 0 && PyUnicode_READ(kind, data, i) == '/')
+    while (i >= 0 && PyUnicode_READ(kind, data, i) == '\\')
     {
         i -= 1;
     }
 
     // Read until the next slash or the start of the string.
-    while (i >= 0 && PyUnicode_READ(kind, data, i) != '/')
+    while (i >= 0 && PyUnicode_READ(kind, data, i) != '\\')
     {
         i -= 1;
     }
 
     if (i > 0)
     {
-        PyObject *parent = PyUnicode_Substring((PyObject *)self->inner, 0, i);
-        return PyWindowsFath((PyUnicodeObject *)parent);
+        PyObject *parent_inner = PyUnicode_Substring((PyObject *)self->inner, 0, i);
+        PyObject *cls = PyObject_Type((PyObject *)self);
+        if (!cls)
+        {
+            return NULL;
+        }
+
+        return PyObject_CallOneArg(cls, parent_inner);
     }
     else
     {
@@ -210,9 +207,43 @@ PyObject *PyWindowsFath_parent(PyWindowsFathObject *self)
     }
 }
 
+PyObject *PyWindowsFath_as_posix(PyWindowsFathObject *self)
+{
+    PyObject *find = NULL;
+    PyObject *replace = NULL;
+    PyObject *result = NULL;
+
+    find = PyUnicode_FromString("/");
+    if (!find)
+    {
+        goto error;
+    }
+
+    replace = PyUnicode_FromString("\\");
+    if (!replace)
+    {
+        goto error;
+    }
+
+    result = PyUnicode_Replace(self->inner, find, replace, -1);
+    if (!result)
+    {
+        goto error;
+    }
+
+    goto done;
+
+error:
+    Py_XDECREF(find);
+    Py_XDECREF(replace);
+
+done:
+    return result;
+}
+
 PyObject *PyWindowsFath_joinpath(PyObject *head, PyObject *tail)
 {
-    if (!PyWindowsFath_CheckExact(head))
+    if (!PyWindowsFath_Check(head))
     {
         Py_RETURN_NOTIMPLEMENTED;
     }
@@ -222,28 +253,26 @@ PyObject *PyWindowsFath_joinpath(PyObject *head, PyObject *tail)
     PyObject *joined_inner = NULL;
     PyObject *joined = NULL;
 
-    if (PyWindowsFath_CheckExact(tail))
+    tail_inner = PyOS_FSPath(tail);
+    if (!tail_inner)
     {
-        tail_inner = (PyObject *)((PyWindowsFathObject *)tail)->inner;
-        Py_INCREF(tail_inner);
-    }
-    else
-    {
-        tail_inner = PyOS_FSPath(tail);
-        if (!tail_inner)
-        {
-            return NULL;
-        }
+        return NULL;
     }
 
-    const char *format = PyWindowsFath_last(self) == '/' ? "%U%U" : "%U/%U";
+    const char *format = PyWindowsFath_last(self) == '\\' ? "%U%U" : "%U\\%U";
     joined_inner = PyUnicode_FromFormat(format, self->inner, tail_inner);
     if (!joined_inner)
     {
         goto error;
     }
 
-    joined = PyWindowsFath((PyUnicodeObject *)joined_inner);
+    PyObject *cls = PyObject_Type((PyObject *)self);
+    if (!cls)
+    {
+        return NULL;
+    }
+
+    joined = PyObject_CallOneArg(cls, joined_inner);
     if (!joined)
     {
         goto error;
@@ -263,6 +292,7 @@ done:
 // MARK: Declaration
 
 static PyMethodDef PyWindowsFath_methods[] = {
+    {"as_posix", (PyCFunction)PyWindowsFath_as_posix, METH_NOARGS, PyDoc_STR("Get the underlying string with posix slashes")},
     {"joinpath", (PyCFunction)PyWindowsFath_joinpath, METH_O, PyDoc_STR("Append another path")},
     {"__getstate__", (PyCFunction)PyFath_getstate, METH_NOARGS, PyDoc_STR("Serialize this fath for pickling")},
     {"__setstate__", (PyCFunction)PyFath_setstate, METH_O, PyDoc_STR("Deserialize this fath for pickling")},
