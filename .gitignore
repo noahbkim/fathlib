@@ -1,6 +1,5 @@
 .venv
 dist
 *.egg-info
-.python-version
 *.so
 __pycache__

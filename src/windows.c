@@ -1,11 +1,11 @@
 #define PY_SSIZE_T_CLEAN
 #include "Python.h"
 
-#include "posix.h"
+#include "windows.h"
 
-PyObject *PyPosixFath(PyUnicodeObject *inner)
+PyObject *PyWindowsFath(PyUnicodeObject *inner)
 {
-    PyPosixFathObject *self = PyObject_New(PyPosixFathObject, &PyPosixFath_Type);
+    PyWindowsFathObject *self = PyObject_New(PyWindowsFathObject, &PyWindowsFath_Type);
     if (!self)
     {
         Py_DECREF(inner);
@@ -18,26 +18,26 @@ PyObject *PyPosixFath(PyUnicodeObject *inner)
 
 // MARK: Intrinsic
 
-PyObject *PyPosixFath_repr(PyPosixFathObject *self)
+PyObject *PyWindowsFath_repr(PyWindowsFathObject *self)
 {
     PyObject *inner = PyUnicode_Type.tp_repr((PyObject *)self->inner);
-    PyObject *repr = PyUnicode_FromFormat("PosixFath(%U)", inner);
+    PyObject *repr = PyUnicode_FromFormat("WindowsFath(%U)", inner);
     Py_DECREF(inner);
     return repr;
 }
 
-Py_hash_t PyPosixFath_hash(PyPosixFathObject *self)
+Py_hash_t PyWindowsFath_hash(PyWindowsFathObject *self)
 {
     // TODO: figure out if this is a reasonable trick.
     return PyUnicode_Type.tp_hash((PyObject *)self->inner) + 1;
 }
 
-PyObject *PyPosixFath_richcompare(PyPosixFathObject *self, PyObject *other, int op)
+PyObject *PyWindowsFath_richcompare(PyWindowsFathObject *self, PyObject *other, int op)
 {
-    if (PyPosixFath_Check(other))
+    if (PyWindowsFath_Check(other))
     {
         PyObject *left = (PyObject *)self->inner;
-        PyObject *right = (PyObject *)((PyPosixFathObject *)other)->inner;
+        PyObject *right = (PyObject *)((PyWindowsFathObject *)other)->inner;
         return PyUnicode_Type.tp_richcompare(left, right, op);
     }
     else
@@ -48,7 +48,7 @@ PyObject *PyPosixFath_richcompare(PyPosixFathObject *self, PyObject *other, int 
 
 // MARK: Methods
 
-Py_UCS4 PyPosixFath_last(PyPosixFathObject *self)
+Py_UCS4 PyWindowsFath_last(PyWindowsFathObject *self)
 {
     Py_ssize_t length = PyUnicode_GET_LENGTH(self->inner);
     int kind = PyUnicode_KIND(self->inner);
@@ -56,7 +56,7 @@ Py_UCS4 PyPosixFath_last(PyPosixFathObject *self)
     return PyUnicode_READ(kind, data, length - 1);
 }
 
-PyObject *PyPosixFath_name(PyPosixFathObject *self)
+PyObject *PyWindowsFath_name(PyWindowsFathObject *self)
 {
     Py_ssize_t length = PyUnicode_GET_LENGTH(self->inner);
     int kind = PyUnicode_KIND(self->inner);
@@ -89,7 +89,7 @@ PyObject *PyPosixFath_name(PyPosixFathObject *self)
     }
 }
 
-PyObject *PyPosixFath_parent(PyPosixFathObject *self)
+PyObject *PyWindowsFath_parent(PyWindowsFathObject *self)
 {
     Py_ssize_t length = PyUnicode_GET_LENGTH(self->inner);
     int kind = PyUnicode_KIND(self->inner);
@@ -111,7 +111,7 @@ PyObject *PyPosixFath_parent(PyPosixFathObject *self)
     if (i > 0)
     {
         PyObject *parent = PyUnicode_Substring((PyObject *)self->inner, 0, i);
-        return PyPosixFath((PyUnicodeObject *)parent);
+        return PyWindowsFath((PyUnicodeObject *)parent);
     }
     else
     {
@@ -119,21 +119,21 @@ PyObject *PyPosixFath_parent(PyPosixFathObject *self)
     }
 }
 
-PyObject *PyPosixFath_joinpath(PyObject *head, PyObject *tail)
+PyObject *PyWindowsFath_joinpath(PyObject *head, PyObject *tail)
 {
-    if (!PyPosixFath_CheckExact(head))
+    if (!PyWindowsFath_CheckExact(head))
     {
         Py_RETURN_NOTIMPLEMENTED;
     }
 
-    PyPosixFathObject *self = (PyPosixFathObject *)head;
+    PyWindowsFathObject *self = (PyWindowsFathObject *)head;
     PyObject *tail_inner;
     PyObject *joined_inner = NULL;
     PyObject *joined = NULL;
 
-    if (PyPosixFath_CheckExact(tail))
+    if (PyWindowsFath_CheckExact(tail))
     {
-        tail_inner = (PyObject *)((PyPosixFathObject *)tail)->inner;
+        tail_inner = (PyObject *)((PyWindowsFathObject *)tail)->inner;
         Py_INCREF(tail_inner);
     }
     else
@@ -145,14 +145,14 @@ PyObject *PyPosixFath_joinpath(PyObject *head, PyObject *tail)
         }
     }
 
-    const char *format = PyPosixFath_last(self) == '/' ? "%U%U" : "%U/%U";
+    const char *format = PyWindowsFath_last(self) == '/' ? "%U%U" : "%U/%U";
     joined_inner = PyUnicode_FromFormat(format, self->inner, tail_inner);
     if (!joined_inner)
     {
         goto error;
     }
 
-    joined = PyPosixFath((PyUnicodeObject *)joined_inner);
+    joined = PyWindowsFath((PyUnicodeObject *)joined_inner);
     if (!joined)
     {
         goto error;
@@ -171,40 +171,40 @@ done:
 
 // MARK: Declaration
 
-static PyMethodDef PyPosixFath_methods[] = {
-    {"joinpath", (PyCFunction)PyPosixFath_joinpath, METH_O, PyDoc_STR("Append another path")},
+static PyMethodDef PyWindowsFath_methods[] = {
+    {"joinpath", (PyCFunction)PyWindowsFath_joinpath, METH_O, PyDoc_STR("Append another path")},
     {"__getstate__", (PyCFunction)PyFath_getstate, METH_NOARGS, PyDoc_STR("Serialize this fath for pickling")},
     {"__setstate__", (PyCFunction)PyFath_setstate, METH_O, PyDoc_STR("Deserialize this fath for pickling")},
     {NULL, NULL, 0, NULL},
 };
 
-static PyGetSetDef PyPosixFath_getset[] = {
-    {"name", (getter)PyPosixFath_name, NULL, PyDoc_STR("Get the base name of the fath"), NULL},
-    {"parent", (getter)PyPosixFath_parent, NULL, PyDoc_STR("Get the parent fath"), NULL},
+static PyGetSetDef PyWindowsFath_getset[] = {
+    {"name", (getter)PyWindowsFath_name, NULL, PyDoc_STR("Get the base name of the fath"), NULL},
+    {"parent", (getter)PyWindowsFath_parent, NULL, PyDoc_STR("Get the parent fath"), NULL},
     {NULL, NULL, NULL, NULL, NULL},
 };
 
-static PyNumberMethods PyPosixFath_as_number = {
-    .nb_true_divide = (PyCFunction)PyPosixFath_joinpath,
+static PyNumberMethods PyWindowsFath_as_number = {
+    .nb_true_divide = (PyCFunction)PyWindowsFath_joinpath,
 };
 
-PyTypeObject PyPosixFath_Type = {
+PyTypeObject PyWindowsFath_Type = {
     // clang-format off
     PyVarObject_HEAD_INIT(NULL, 0)
-    .tp_name = "fathlib.PosixFath",
+    .tp_name = "fathlib.WindowsFath",
     // clang-format on
     .tp_flags = Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE,
-    .tp_doc = PyDoc_STR("A faster alternative to fathlib.Fath"),
-    .tp_basicsize = sizeof(PyPosixFathObject),
+    .tp_doc = PyDoc_STR("A faster alternative to pathlib.Path"),
+    .tp_basicsize = sizeof(PyWindowsFathObject),
     .tp_itemsize = 0,
     .tp_new = (newfunc)PyFath_new,
     .tp_init = (initproc)PyFath_init,
-    .tp_hash = (hashfunc)PyPosixFath_hash,
-    .tp_richcompare = (richcmpfunc)PyPosixFath_richcompare,
-    .tp_repr = (reprfunc)PyPosixFath_repr,
+    .tp_hash = (hashfunc)PyWindowsFath_hash,
+    .tp_richcompare = (richcmpfunc)PyWindowsFath_richcompare,
+    .tp_repr = (reprfunc)PyWindowsFath_repr,
     .tp_str = (reprfunc)PyFath_str,
     .tp_dealloc = (destructor)PyFath_dealloc,
-    .tp_as_number = &PyPosixFath_as_number,
-    .tp_methods = PyPosixFath_methods,
-    .tp_getset = PyPosixFath_getset,
+    .tp_as_number = &PyWindowsFath_as_number,
+    .tp_methods = PyWindowsFath_methods,
+    .tp_getset = PyWindowsFath_getset,
 };

@@ -1,4 +1,6 @@
-import contextlib
+# Copied from Lib/test/test_pathlib.py (3.12)
+# fmt: off
+
 import collections.abc
 import io
 import os
@@ -11,13 +13,13 @@ import tempfile
 import unittest
 from unittest import mock
 
-import fathlib
-
 from test.support import import_helper
 from test.support import set_recursion_limit
 from test.support import is_emscripten, is_wasi
 from test.support import os_helper
 from test.support.os_helper import TESTFN, FakePath
+
+import fathlib as pathlib
 
 try:
     import grp, pwd
@@ -258,7 +260,7 @@ class _BasePurePathTest(object):
                 p = self.cls(pathstr)
                 r = repr(p)
                 # The repr() roundtrips.
-                q = eval(r, fathlib.__dict__)
+                q = eval(r, pathlib.__dict__)
                 self.assertIs(q.__class__, p.__class__)
                 self.assertEqual(q, p)
                 self.assertEqual(repr(q), r)
@@ -721,8 +723,8 @@ class _BasePurePathTest(object):
             self.assertEqual(str(pp), str(p))
 
 
-class PurePosixFathTest(_BasePurePathTest, unittest.TestCase):
-    cls = fathlib.PurePosixFath
+class PurePosixPathTest(_BasePurePathTest, unittest.TestCase):
+    cls = pathlib.PurePosixPath
 
     def test_drive_root_parts(self):
         check = self._check_drive_root_parts
@@ -808,15 +810,15 @@ class PurePosixFathTest(_BasePurePathTest, unittest.TestCase):
         pp = P('//a') / '/c'
         self.assertEqual(pp, P('/c'))
 
-    # def test_parse_windows_path(self):
-    #     P = self.cls
-    #     p = P('c:', 'a', 'b')
-    #     pp = P(fathlib.PureWindowsPath('c:\\a\\b'))
-    #     self.assertEqual(p, pp)
+    def test_parse_windows_path(self):
+        P = self.cls
+        p = P('c:', 'a', 'b')
+        pp = P(pathlib.PureWindowsPath('c:\\a\\b'))
+        self.assertEqual(p, pp)
 
 
 class PureWindowsPathTest(_BasePurePathTest, unittest.TestCase):
-    cls = fathlib.PureWindowsFath
+    cls = pathlib.PureWindowsPath
 
     equivalences = _BasePurePathTest.equivalences.copy()
     equivalences.update({
@@ -834,8 +836,8 @@ class PureWindowsPathTest(_BasePurePathTest, unittest.TestCase):
 
     def test_constructor_nested_foreign_flavour(self):
         # See GH-125069.
-        p1 = fathlib.PurePosixFath('b/c:\\d')
-        p2 = fathlib.PurePosixFath('b/', 'c:\\d')
+        p1 = pathlib.PurePosixPath('b/c:\\d')
+        p2 = pathlib.PurePosixPath('b/', 'c:\\d')
         self.assertEqual(p1, p2)
         self.assertEqual(self.cls(p1), self.cls('b/c:/d'))
         self.assertEqual(self.cls(p2), self.cls('b/c:/d'))
@@ -1502,21 +1504,21 @@ class PureWindowsPathTest(_BasePurePathTest, unittest.TestCase):
         self.assertIs(False, P('c:/NUL/con/baz').is_reserved())
 
 class PurePathTest(_BasePurePathTest, unittest.TestCase):
-    cls = fathlib.PurePath
+    cls = pathlib.PurePath
 
     def test_concrete_class(self):
         p = self.cls('a')
         self.assertIs(type(p),
-            fathlib.PureWindowsPath if os.name == 'nt' else fathlib.PurePosixFath)
+            pathlib.PureWindowsPath if os.name == 'nt' else pathlib.PurePosixPath)
 
     def test_different_flavours_unequal(self):
-        p = fathlib.PurePosixFath('a')
-        q = fathlib.PureWindowsPath('a')
+        p = pathlib.PurePosixPath('a')
+        q = pathlib.PureWindowsPath('a')
         self.assertNotEqual(p, q)
 
     def test_different_flavours_unordered(self):
-        p = fathlib.PurePosixFath('a')
-        q = fathlib.PureWindowsPath('a')
+        p = pathlib.PurePosixPath('a')
+        q = pathlib.PureWindowsPath('a')
         with self.assertRaises(TypeError):
             p < q
         with self.assertRaises(TypeError):
@@ -1542,12 +1544,12 @@ only_posix = unittest.skipIf(os.name == 'nt',
                              'test requires a POSIX-compatible system')
 
 @only_posix
-class PosixFathAsPureTest(PurePosixFathTest):
-    cls = fathlib.PosixFath
+class PosixPathAsPureTest(PurePosixPathTest):
+    cls = pathlib.PosixPath
 
 @only_nt
 class WindowsPathAsPureTest(PureWindowsPathTest):
-    cls = fathlib.WindowsPath
+    cls = pathlib.WindowsPath
 
     def test_owner(self):
         P = self.cls
@@ -2019,8 +2021,8 @@ class _BasePathTest(object):
         recursion_limit = 50
         # directory_depth > recursion_limit
         directory_depth = recursion_limit + 10
-        base = fathlib.Fath(os_helper.TESTFN, 'deep')
-        path = fathlib.Fath(base, *(['d'] * directory_depth))
+        base = pathlib.Path(os_helper.TESTFN, 'deep')
+        path = pathlib.Path(base, *(['d'] * directory_depth))
         path.mkdir(parents=True)
 
         with set_recursion_limit(recursion_limit):
@@ -2096,7 +2098,7 @@ class _BasePathTest(object):
 
     @os_helper.skip_unless_symlink
     def test_resolve_dot(self):
-        # See http://web.archive.org/web/20200623062557/https://bitbucket.org/pitrou/fathlib/issues/9/
+        # See http://web.archive.org/web/20200623062557/https://bitbucket.org/pitrou/pathlib/issues/9/
         p = self.cls(BASE)
         self.dirlink('.', join('0'))
         self.dirlink(os.path.join('0', '0'), join('1'))
@@ -2749,7 +2751,7 @@ class WalkTests(unittest.TestCase):
         #           broken_link3
         #       TEST2/
         #         tmp4              a lone file
-        self.walk_path = fathlib.Fath(os_helper.TESTFN, "TEST1")
+        self.walk_path = pathlib.Path(os_helper.TESTFN, "TEST1")
         self.sub1_path = self.walk_path / "SUB1"
         self.sub11_path = self.sub1_path / "SUB11"
         self.sub2_path = self.walk_path / "SUB2"
@@ -2759,8 +2761,8 @@ class WalkTests(unittest.TestCase):
         tmp3_path = self.sub2_path / "tmp3"
         tmp5_path = sub21_path / "tmp3"
         self.link_path = self.sub2_path / "link"
-        t2_path = fathlib.Fath(os_helper.TESTFN, "TEST2")
-        tmp4_path = fathlib.Fath(os_helper.TESTFN, "TEST2", "tmp4")
+        t2_path = pathlib.Path(os_helper.TESTFN, "TEST2")
+        tmp4_path = pathlib.Path(os_helper.TESTFN, "TEST2", "tmp4")
         broken_link_path = self.sub2_path / "broken_link"
         broken_link2_path = self.sub2_path / "broken_link2"
         broken_link3_path = self.sub2_path / "broken_link3"
@@ -2772,13 +2774,13 @@ class WalkTests(unittest.TestCase):
 
         for path in tmp1_path, tmp2_path, tmp3_path, tmp4_path, tmp5_path:
             with open(path, "x", encoding='utf-8') as f:
-                f.write(f"I'm {path} and proud of it.  Blame test_fathlib.\n")
+                f.write(f"I'm {path} and proud of it.  Blame test_pathlib.\n")
 
         if os_helper.can_symlink():
             os.symlink(os.path.abspath(t2_path), self.link_path)
             os.symlink('broken', broken_link_path, True)
-            os.symlink(fathlib.Fath('tmp3', 'broken'), broken_link2_path, True)
-            os.symlink(fathlib.Fath('SUB21', 'tmp5'), broken_link3_path, True)
+            os.symlink(pathlib.Path('tmp3', 'broken'), broken_link2_path, True)
+            os.symlink(pathlib.Path('SUB21', 'tmp5'), broken_link3_path, True)
             self.sub2_tree = (self.sub2_path, ["SUB21"],
                               ["broken_link", "broken_link2", "broken_link3",
                                "link", "tmp3"])
@@ -2919,8 +2921,8 @@ class WalkTests(unittest.TestCase):
 
     def test_walk_many_open_files(self):
         depth = 30
-        base = fathlib.Fath(os_helper.TESTFN, 'deep')
-        path = fathlib.Fath(base, *(['d']*depth))
+        base = pathlib.Path(os_helper.TESTFN, 'deep')
+        path = pathlib.Path(base, *(['d']*depth))
         path.mkdir(parents=True)
 
         iters = [base.walk(top_down=False) for _ in range(100)]
@@ -2942,8 +2944,8 @@ class WalkTests(unittest.TestCase):
         recursion_limit = 40
         # directory_depth > recursion_limit
         directory_depth = recursion_limit + 10
-        base = fathlib.Fath(os_helper.TESTFN, 'deep')
-        path = fathlib.Fath(base, *(['d'] * directory_depth))
+        base = pathlib.Path(os_helper.TESTFN, 'deep')
+        path = pathlib.Path(base, *(['d'] * directory_depth))
         path.mkdir(parents=True)
 
         with set_recursion_limit(recursion_limit):
@@ -2952,18 +2954,18 @@ class WalkTests(unittest.TestCase):
 
 
 class PathTest(_BasePathTest, unittest.TestCase):
-    cls = fathlib.Fath
+    cls = pathlib.Path
 
     def test_concrete_class(self):
         p = self.cls('a')
         self.assertIs(type(p),
-            fathlib.WindowsPath if os.name == 'nt' else fathlib.PosixFath)
+            pathlib.WindowsPath if os.name == 'nt' else pathlib.PosixPath)
 
     def test_unsupported_flavour(self):
         if os.name == 'nt':
-            self.assertRaises(NotImplementedError, fathlib.PosixFath)
+            self.assertRaises(NotImplementedError, pathlib.PosixPath)
         else:
-            self.assertRaises(NotImplementedError, fathlib.WindowsPath)
+            self.assertRaises(NotImplementedError, pathlib.WindowsPath)
 
     def test_glob_empty_pattern(self):
         p = self.cls()
@@ -2972,8 +2974,8 @@ class PathTest(_BasePathTest, unittest.TestCase):
 
 
 @only_posix
-class PosixFathTest(_BasePathTest, unittest.TestCase):
-    cls = fathlib.PosixFath
+class PosixPathTest(_BasePathTest, unittest.TestCase):
+    cls = pathlib.PosixPath
 
     def test_absolute(self):
         P = self.cls
@@ -3135,7 +3137,7 @@ class PosixFathTest(_BasePathTest, unittest.TestCase):
                      "Bad file descriptor in /dev/fd affects only macOS")
     def test_handling_bad_descriptor(self):
         try:
-            file_descriptors = list(fathlib.Fath('/dev/fd').rglob("*"))[3:]
+            file_descriptors = list(pathlib.Path('/dev/fd').rglob("*"))[3:]
             if not file_descriptors:
                 self.skipTest("no file descriptors - issue was not reproduced")
             # Checking all file descriptors because there is no guarantee
@@ -3155,176 +3157,176 @@ class PosixFathTest(_BasePathTest, unittest.TestCase):
             raise
 
 
-# @only_nt
-# class WindowsPathTest(_BasePathTest, unittest.TestCase):
-#     cls = fathlib.WindowsPath
+@only_nt
+class WindowsPathTest(_BasePathTest, unittest.TestCase):
+    cls = pathlib.WindowsPath
 
-#     def test_absolute(self):
-#         P = self.cls
+    def test_absolute(self):
+        P = self.cls
 
-#         # Simple absolute paths.
-#         self.assertEqual(str(P('c:\\').absolute()), 'c:\\')
-#         self.assertEqual(str(P('c:\\a').absolute()), 'c:\\a')
-#         self.assertEqual(str(P('c:\\a\\b').absolute()), 'c:\\a\\b')
+        # Simple absolute paths.
+        self.assertEqual(str(P('c:\\').absolute()), 'c:\\')
+        self.assertEqual(str(P('c:\\a').absolute()), 'c:\\a')
+        self.assertEqual(str(P('c:\\a\\b').absolute()), 'c:\\a\\b')
 
-#         # UNC absolute paths.
-#         share = '\\\\server\\share\\'
-#         self.assertEqual(str(P(share).absolute()), share)
-#         self.assertEqual(str(P(share + 'a').absolute()), share + 'a')
-#         self.assertEqual(str(P(share + 'a\\b').absolute()), share + 'a\\b')
+        # UNC absolute paths.
+        share = '\\\\server\\share\\'
+        self.assertEqual(str(P(share).absolute()), share)
+        self.assertEqual(str(P(share + 'a').absolute()), share + 'a')
+        self.assertEqual(str(P(share + 'a\\b').absolute()), share + 'a\\b')
 
-#         # UNC relative paths.
-#         with mock.patch("os.getcwd") as getcwd:
-#             getcwd.return_value = share
+        # UNC relative paths.
+        with mock.patch("os.getcwd") as getcwd:
+            getcwd.return_value = share
 
-#             self.assertEqual(str(P().absolute()), share)
-#             self.assertEqual(str(P('.').absolute()), share)
-#             self.assertEqual(str(P('a').absolute()), os.path.join(share, 'a'))
-#             self.assertEqual(str(P('a', 'b', 'c').absolute()),
-#                              os.path.join(share, 'a', 'b', 'c'))
+            self.assertEqual(str(P().absolute()), share)
+            self.assertEqual(str(P('.').absolute()), share)
+            self.assertEqual(str(P('a').absolute()), os.path.join(share, 'a'))
+            self.assertEqual(str(P('a', 'b', 'c').absolute()),
+                             os.path.join(share, 'a', 'b', 'c'))
 
-#         drive = os.path.splitdrive(BASE)[0]
-#         with os_helper.change_cwd(BASE):
-#             # Relative path with root
-#             self.assertEqual(str(P('\\').absolute()), drive + '\\')
-#             self.assertEqual(str(P('\\foo').absolute()), drive + '\\foo')
+        drive = os.path.splitdrive(BASE)[0]
+        with os_helper.change_cwd(BASE):
+            # Relative path with root
+            self.assertEqual(str(P('\\').absolute()), drive + '\\')
+            self.assertEqual(str(P('\\foo').absolute()), drive + '\\foo')
 
-#             # Relative path on current drive
-#             self.assertEqual(str(P(drive).absolute()), BASE)
-#             self.assertEqual(str(P(drive + 'foo').absolute()), os.path.join(BASE, 'foo'))
+            # Relative path on current drive
+            self.assertEqual(str(P(drive).absolute()), BASE)
+            self.assertEqual(str(P(drive + 'foo').absolute()), os.path.join(BASE, 'foo'))
 
-#         with os_helper.subst_drive(BASE) as other_drive:
-#             # Set the working directory on the substitute drive
-#             saved_cwd = os.getcwd()
-#             other_cwd = f'{other_drive}\\dirA'
-#             os.chdir(other_cwd)
-#             os.chdir(saved_cwd)
+        with os_helper.subst_drive(BASE) as other_drive:
+            # Set the working directory on the substitute drive
+            saved_cwd = os.getcwd()
+            other_cwd = f'{other_drive}\\dirA'
+            os.chdir(other_cwd)
+            os.chdir(saved_cwd)
 
-#             # Relative path on another drive
-#             self.assertEqual(str(P(other_drive).absolute()), other_cwd)
-#             self.assertEqual(str(P(other_drive + 'foo').absolute()), other_cwd + '\\foo')
+            # Relative path on another drive
+            self.assertEqual(str(P(other_drive).absolute()), other_cwd)
+            self.assertEqual(str(P(other_drive + 'foo').absolute()), other_cwd + '\\foo')
 
-#     def test_glob(self):
-#         P = self.cls
-#         p = P(BASE)
-#         self.assertEqual(set(p.glob("FILEa")), { P(BASE, "fileA") })
-#         self.assertEqual(set(p.glob("*a\\")), { P(BASE, "dirA") })
-#         self.assertEqual(set(p.glob("F*a")), { P(BASE, "fileA") })
-#         self.assertEqual(set(map(str, p.glob("FILEa"))), {f"{p}\\fileA"})
-#         self.assertEqual(set(map(str, p.glob("F*a"))), {f"{p}\\fileA"})
+    def test_glob(self):
+        P = self.cls
+        p = P(BASE)
+        self.assertEqual(set(p.glob("FILEa")), { P(BASE, "fileA") })
+        self.assertEqual(set(p.glob("*a\\")), { P(BASE, "dirA") })
+        self.assertEqual(set(p.glob("F*a")), { P(BASE, "fileA") })
+        self.assertEqual(set(map(str, p.glob("FILEa"))), {f"{p}\\fileA"})
+        self.assertEqual(set(map(str, p.glob("F*a"))), {f"{p}\\fileA"})
 
-#     def test_rglob(self):
-#         P = self.cls
-#         p = P(BASE, "dirC")
-#         self.assertEqual(set(p.rglob("FILEd")), { P(BASE, "dirC/dirD/fileD") })
-#         self.assertEqual(set(p.rglob("*\\")), { P(BASE, "dirC/dirD") })
-#         self.assertEqual(set(map(str, p.rglob("FILEd"))), {f"{p}\\dirD\\fileD"})
+    def test_rglob(self):
+        P = self.cls
+        p = P(BASE, "dirC")
+        self.assertEqual(set(p.rglob("FILEd")), { P(BASE, "dirC/dirD/fileD") })
+        self.assertEqual(set(p.rglob("*\\")), { P(BASE, "dirC/dirD") })
+        self.assertEqual(set(map(str, p.rglob("FILEd"))), {f"{p}\\dirD\\fileD"})
 
-#     def test_expanduser(self):
-#         P = self.cls
-#         with os_helper.EnvironmentVarGuard() as env:
-#             env.unset('HOME', 'USERPROFILE', 'HOMEPATH', 'HOMEDRIVE')
-#             env['USERNAME'] = 'alice'
+    def test_expanduser(self):
+        P = self.cls
+        with os_helper.EnvironmentVarGuard() as env:
+            env.unset('HOME', 'USERPROFILE', 'HOMEPATH', 'HOMEDRIVE')
+            env['USERNAME'] = 'alice'
 
-#             # test that the path returns unchanged
-#             p1 = P('~/My Documents')
-#             p2 = P('~alice/My Documents')
-#             p3 = P('~bob/My Documents')
-#             p4 = P('/~/My Documents')
-#             p5 = P('d:~/My Documents')
-#             p6 = P('')
-#             self.assertRaises(RuntimeError, p1.expanduser)
-#             self.assertRaises(RuntimeError, p2.expanduser)
-#             self.assertRaises(RuntimeError, p3.expanduser)
-#             self.assertEqual(p4.expanduser(), p4)
-#             self.assertEqual(p5.expanduser(), p5)
-#             self.assertEqual(p6.expanduser(), p6)
+            # test that the path returns unchanged
+            p1 = P('~/My Documents')
+            p2 = P('~alice/My Documents')
+            p3 = P('~bob/My Documents')
+            p4 = P('/~/My Documents')
+            p5 = P('d:~/My Documents')
+            p6 = P('')
+            self.assertRaises(RuntimeError, p1.expanduser)
+            self.assertRaises(RuntimeError, p2.expanduser)
+            self.assertRaises(RuntimeError, p3.expanduser)
+            self.assertEqual(p4.expanduser(), p4)
+            self.assertEqual(p5.expanduser(), p5)
+            self.assertEqual(p6.expanduser(), p6)
 
-#             def check():
-#                 env.pop('USERNAME', None)
-#                 self.assertEqual(p1.expanduser(),
-#                                  P('C:/Users/alice/My Documents'))
-#                 self.assertRaises(RuntimeError, p2.expanduser)
-#                 env['USERNAME'] = 'alice'
-#                 self.assertEqual(p2.expanduser(),
-#                                  P('C:/Users/alice/My Documents'))
-#                 self.assertEqual(p3.expanduser(),
-#                                  P('C:/Users/bob/My Documents'))
-#                 self.assertEqual(p4.expanduser(), p4)
-#                 self.assertEqual(p5.expanduser(), p5)
-#                 self.assertEqual(p6.expanduser(), p6)
+            def check():
+                env.pop('USERNAME', None)
+                self.assertEqual(p1.expanduser(),
+                                 P('C:/Users/alice/My Documents'))
+                self.assertRaises(RuntimeError, p2.expanduser)
+                env['USERNAME'] = 'alice'
+                self.assertEqual(p2.expanduser(),
+                                 P('C:/Users/alice/My Documents'))
+                self.assertEqual(p3.expanduser(),
+                                 P('C:/Users/bob/My Documents'))
+                self.assertEqual(p4.expanduser(), p4)
+                self.assertEqual(p5.expanduser(), p5)
+                self.assertEqual(p6.expanduser(), p6)
 
-#             env['HOMEPATH'] = 'C:\\Users\\alice'
-#             check()
+            env['HOMEPATH'] = 'C:\\Users\\alice'
+            check()
 
-#             env['HOMEDRIVE'] = 'C:\\'
-#             env['HOMEPATH'] = 'Users\\alice'
-#             check()
+            env['HOMEDRIVE'] = 'C:\\'
+            env['HOMEPATH'] = 'Users\\alice'
+            check()
 
-#             env.unset('HOMEDRIVE', 'HOMEPATH')
-#             env['USERPROFILE'] = 'C:\\Users\\alice'
-#             check()
+            env.unset('HOMEDRIVE', 'HOMEPATH')
+            env['USERPROFILE'] = 'C:\\Users\\alice'
+            check()
 
-#             # bpo-38883: ignore `HOME` when set on windows
-#             env['HOME'] = 'C:\\Users\\eve'
-#             check()
-
-
-# class PurePathSubclassTest(_BasePurePathTest, unittest.TestCase):
-#     class cls(fathlib.PurePath):
-#         pass
-
-#     # repr() roundtripping is not supported in custom subclass.
-#     test_repr_roundtrips = None
+            # bpo-38883: ignore `HOME` when set on windows
+            env['HOME'] = 'C:\\Users\\eve'
+            check()
 
 
-# class PathSubclassTest(_BasePathTest, unittest.TestCase):
-#     class cls(fathlib.Fath):
-#         pass
+class PurePathSubclassTest(_BasePurePathTest, unittest.TestCase):
+    class cls(pathlib.PurePath):
+        pass
 
-#     # repr() roundtripping is not supported in custom subclass.
-#     test_repr_roundtrips = None
+    # repr() roundtripping is not supported in custom subclass.
+    test_repr_roundtrips = None
 
 
-# class CompatiblePathTest(unittest.TestCase):
-#     """
-#     Test that a type can be made compatible with PurePath
-#     derivatives by implementing division operator overloads.
-#     """
+class PathSubclassTest(_BasePathTest, unittest.TestCase):
+    class cls(pathlib.Path):
+        pass
 
-#     class CompatPath:
-#         """
-#         Minimum viable class to test PurePath compatibility.
-#         Simply uses the division operator to join a given
-#         string and the string value of another object with
-#         a forward slash.
-#         """
-#         def __init__(self, string):
-#             self.string = string
+    # repr() roundtripping is not supported in custom subclass.
+    test_repr_roundtrips = None
 
-#         def __truediv__(self, other):
-#             return type(self)(f"{self.string}/{other}")
 
-#         def __rtruediv__(self, other):
-#             return type(self)(f"{other}/{self.string}")
+class CompatiblePathTest(unittest.TestCase):
+    """
+    Test that a type can be made compatible with PurePath
+    derivatives by implementing division operator overloads.
+    """
 
-#     def test_truediv(self):
-#         result = fathlib.PurePath("test") / self.CompatPath("right")
-#         self.assertIsInstance(result, self.CompatPath)
-#         self.assertEqual(result.string, "test/right")
+    class CompatPath:
+        """
+        Minimum viable class to test PurePath compatibility.
+        Simply uses the division operator to join a given
+        string and the string value of another object with
+        a forward slash.
+        """
+        def __init__(self, string):
+            self.string = string
 
-#         with self.assertRaises(TypeError):
-#             # Verify improper operations still raise a TypeError
-#             fathlib.PurePath("test") / 10
+        def __truediv__(self, other):
+            return type(self)(f"{self.string}/{other}")
 
-#     def test_rtruediv(self):
-#         result = self.CompatPath("left") / fathlib.PurePath("test")
-#         self.assertIsInstance(result, self.CompatPath)
-#         self.assertEqual(result.string, "left/test")
+        def __rtruediv__(self, other):
+            return type(self)(f"{other}/{self.string}")
 
-#         with self.assertRaises(TypeError):
-#             # Verify improper operations still raise a TypeError
-#             10 / fathlib.PurePath("test")
+    def test_truediv(self):
+        result = pathlib.PurePath("test") / self.CompatPath("right")
+        self.assertIsInstance(result, self.CompatPath)
+        self.assertEqual(result.string, "test/right")
+
+        with self.assertRaises(TypeError):
+            # Verify improper operations still raise a TypeError
+            pathlib.PurePath("test") / 10
+
+    def test_rtruediv(self):
+        result = self.CompatPath("left") / pathlib.PurePath("test")
+        self.assertIsInstance(result, self.CompatPath)
+        self.assertEqual(result.string, "left/test")
+
+        with self.assertRaises(TypeError):
+            # Verify improper operations still raise a TypeError
+            10 / pathlib.PurePath("test")
 
 
 if __name__ == "__main__":
