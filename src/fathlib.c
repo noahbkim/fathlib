@@ -3,6 +3,7 @@
 
 #include "generic.h"
 #include "posix.h"
+#include "windows.h"
 
 static PyMethodDef PyFathlibModule_Methods[] = {
     {NULL, NULL, 0, NULL}};
@@ -20,21 +21,28 @@ PyInit_core()
 {
     PyObject *module = NULL;
 
-    // Cancel initialization if types aren't constructed yet.
     if (PyType_Ready(&PyPosixFath_Type) < 0)
     {
         return NULL;
     }
 
-    // Construct the containing module object.
+    if (PyType_Ready(&PyWindowsFath_Type) < 0)
+    {
+        return NULL;
+    }
+
     module = PyModule_Create(&PyFathlibModule);
     if (module == NULL)
     {
         goto error;
     }
 
-    // Add a reference to our `Fath` types.
     if (PyModule_AddObjectRef(module, "PurePosixFath", (PyObject *)&PyPosixFath_Type) < 0)
+    {
+        goto error;
+    }
+
+    if (PyModule_AddObjectRef(module, "PureWindowsFath", (PyObject *)&PyWindowsFath_Type) < 0)
     {
         goto error;
     }

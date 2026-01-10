@@ -5,7 +5,6 @@
 #include "Python.h"
 
 #include "generic.h"
-#include "posix.h"
 
 // MARK: Object
 

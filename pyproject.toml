@@ -15,7 +15,7 @@ packages = ["fathlib"]
 
 [[tool.setuptools.ext-modules]]
 name = "fathlib.core"
-sources = ["src/fathlib.c", "src/generic.c", "src/posix.c"]
+sources = ["src/fathlib.c", "src/generic.c", "src/posix.c", "src/windows.c"]
 include-dirs = ["include"]
-depends = ["include/generic.h", "include/posix.h"]
+depends = ["include/generic.h", "include/posix.h", "include/windows.h"]
 extra-compile-args = ["-Wall", "-std=c17"]
