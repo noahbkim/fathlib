@@ -18,6 +18,97 @@ PyObject *PyWindowsFath(PyUnicodeObject *inner)
 
 // MARK: Intrinsic
 
+int PyWindowsFath_init(PyFathObject *self, PyObject *args, PyObject *kwargs)
+{
+    if (kwargs)
+    {
+        PyErr_Format(PyExc_TypeError,
+                     "fathlib.WindowsFath takes no keyword arguments");
+        return -1;
+    }
+
+    // Default constructor
+    Py_ssize_t nargs = PyTuple_GET_SIZE(args);
+    if (nargs == 0)
+    {
+        self->inner = (PyUnicodeObject *)PyUnicode_New(0, 0);
+        return 0;
+    }
+
+    // Call `__fspath__` on a single argument
+    else if (nargs == 1)
+    {
+        PyObject *arg = PyTuple_GET_ITEM(args, 0);
+        PyObject *fspath = PyOS_FSPath(arg);
+        if (!fspath)
+        {
+            goto error;
+        }
+        if (PyBytes_CheckExact(fspath))
+        {
+            PyErr_Format(PyExc_TypeError,
+                         "fathlib.Fath does not support bytes faths");
+            Py_DECREF(fspath);
+            goto error;
+        }
+        if (!PyUnicode_CheckExact(fspath))
+        {
+            PyErr_Format(PyExc_TypeError,
+                         "fathlib.Fath cannot be constructed from %T", fspath);
+            Py_DECREF(fspath);
+            goto error;
+        }
+
+        self->inner = (PyUnicodeObject *)fspath;
+        return 0;
+    }
+
+    // Join the `__fspath__` of multiple arguments.
+    if (nargs > 1)
+    {
+        assert(Py_REFCNT(args) == 1);
+        for (Py_ssize_t i = 0; i < nargs; ++i)
+        {
+            PyObject *fspath = PyOS_FSPath(PyTuple_GET_ITEM(args, i));
+            if (!fspath)
+            {
+                goto error;
+            }
+            if (PyBytes_CheckExact(fspath))
+            {
+                PyErr_Format(PyExc_TypeError,
+                             "fathlib.WindowsFath does not support bytes faths");
+                Py_DECREF(fspath);
+                goto error;
+            }
+            if (!PyUnicode_CheckExact(fspath))
+            {
+                PyErr_Format(PyExc_TypeError,
+                             "fathlib.WindowsFath cannot be constructed from %T", fspath);
+                Py_DECREF(fspath);
+                goto error;
+            }
+            Py_DECREF(PyTuple_GET_ITEM(args, i));
+            PyTuple_SET_ITEM(args, i, fspath);
+        }
+
+        PyObject *slash = PyUnicode_FromString("/");
+        if (!slash)
+        {
+            goto error;
+        }
+
+        PyObject *inner = PyUnicode_Join(slash, args);
+        self->inner = (PyUnicodeObject *)inner;
+        return 0;
+    }
+
+error:
+    Py_XDECREF(args);
+    Py_XDECREF(kwargs);
+    return -1;
+}
+
 PyObject *PyWindowsFath_repr(PyWindowsFathObject *self)
 {
     PyObject *inner = PyUnicode_Type.tp_repr((PyObject *)self->inner);
@@ -198,7 +289,7 @@ PyTypeObject PyWindowsFath_Type = {
     .tp_basicsize = sizeof(PyWindowsFathObject),
     .tp_itemsize = 0,
     .tp_new = (newfunc)PyFath_new,
-    .tp_init = (initproc)PyFath_init,
+    .tp_init = (initproc)PyWindowsFath_init,
     .tp_hash = (hashfunc)PyWindowsFath_hash,
     .tp_richcompare = (richcmpfunc)PyWindowsFath_richcompare,
     .tp_repr = (reprfunc)PyWindowsFath_repr,
