@@ -99,8 +99,8 @@ error:
 PyObject *PyWindowsFath_repr(PyWindowsFathObject *self)
 {
     PyObject *inner = PyUnicode_Type.tp_repr((PyObject *)self->inner);
-    PyObject *cls = PyObject_Type(self);
-    PyObject *cls_name = PyType_GetName(cls);
+    PyObject *cls = PyObject_Type((PyObject *)self);
+    PyObject *cls_name = PyType_GetName((PyTypeObject *)cls);
     PyObject *repr = PyUnicode_FromFormat("%U(%U)", cls_name, inner);
     Py_DECREF(inner);
     Py_DECREF(cls);
@@ -225,7 +225,7 @@ PyObject *PyWindowsFath_as_posix(PyWindowsFathObject *self)
         goto error;
     }
 
-    result = PyUnicode_Replace(self->inner, find, replace, -1);
+    result = PyUnicode_Replace((PyObject *)self->inner, find, replace, -1);
     if (!result)
     {
         goto error;

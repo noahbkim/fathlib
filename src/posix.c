@@ -3,6 +3,326 @@
 
 #include "posix.h"
 
+// MARK: Sanitizer
+
+typedef enum
+{
+    SANITIZE_START,
+    SANITIZE_START_DOT,
+    SANITIZE_START_SLASH,
+    SANITIZE_START_SLASH_DOT,
+    SANITIZE_START_SLASH_SLASH,
+    SANITIZE_START_SLASH_SLASH_DOT,
+    SANITIZE_START_SLASH_SLASH_SLASHES_DOT,
+    SANITIZE_REST,
+    SANITIZE_REST_SLASH,
+    SANITIZE_REST_SLASH_DOT,
+    SANITIZE_REST_SLASH_SLASHES,
+    SANITIZE_REST_SLASH_SLASHES_DOT,
+} SanitizerState;
+
+
+static PyUnicodeObject *sanitize(PyUnicodeObject *inner)
+{
+    Py_ssize_t length = PyUnicode_GET_LENGTH(inner);
+
+    // Replace an empty string with a ".".
+    if (length == 0)
+    {
+        Py_DECREF(inner);
+        return (PyUnicodeObject *)PyUnicode_FromString(".");
+    }
+
+    // There is no invalid, one-character path.
+    if (length == 1)
+    {
+        return inner;
+    }
+
+    int kind = PyUnicode_KIND(inner);
+    void *read = PyUnicode_DATA(inner);
+
+    SanitizerState state = SANITIZE_START;
+    PyUnicodeObject *owned = NULL;
+    void *write = NULL;
+    Py_ssize_t read_index = 0;
+    Py_ssize_t write_index = 0;
+
+#define COW(RESIZE) \
+    assert(!owned); \
+    if (Py_REFCNT(inner) == 1) \
+    { \
+        owned = inner; \
+        write = read; \
+    } \
+    else \
+    { \
+        owned = (PyUnicodeObject *)PyUnicode_FromKindAndData(kind, read, (RESIZE)); \
+        if (!owned) \
+        { \
+            return NULL; \
+        } \
+        write = PyUnicode_DATA(owned); \
+    }
+
+    while (read_index < length)
+    {
+        Py_UCS4 cursor = PyUnicode_READ(kind, read, read_index);
+        switch (state)
+        {
+            case SANITIZE_START:
+                // Always advance the first character, but possibly transition
+                // into a different state for starting slashes or dots.
+                switch (cursor)
+                {
+                    case '.':
+                        write_index += 1;
+                        state = SANITIZE_START_DOT;
+                        break;
+                    case '/':
+                        write_index += 1;
+                        state = SANITIZE_START_SLASH;
+                        break;
+                    default:
+                        write_index += 1;
+                        state = SANITIZE_REST;
+                        break;
+                }
+                break;
+            case SANITIZE_START_DOT:
+                switch (cursor)
+                {
+                    case '/':
+                        state = SANITIZE_REST_SLASH;
+                        break;
+                    default:
+                        write_index += 2;
+                        state = SANITIZE_REST;
+                        break;
+                }
+                break;
+            case SANITIZE_START_SLASH:
+                // Always advance the second character. Check if we need to
+                // handle a double-slash root or collapse three or more slashes.
+                switch (cursor)
+                {
+                    case '.':
+                        state = SANITIZE_START_SLASH_DOT;
+                        break;
+                    case '/':
+                        write_index += 1;
+                        state = SANITIZE_START_SLASH_SLASH;
+                        break;
+                    default:
+                        write_index += 1;
+                        state = SANITIZE_REST;
+                        break;
+                }
+                break;
+            case SANITIZE_START_SLASH_DOT:
+                switch (cursor)
+                {
+                    case '/':
+                        state = SANITIZE_START_SLASH;
+                        break;
+                    default:
+                        if (write_index + 2 == read_index)
+                        {
+                            write_index += 2;
+                        }
+                        else
+                        {
+                            COW(length - (read_index - 1));
+                            PyUnicode_WRITE(kind, write, write_index, '.');
+                            write_index += 1;
+                            PyUnicode_WRITE(kind, write, write_index, cursor);
+                            write_index += 1;
+                        }
+                        state = SANITIZE_REST;
+                        break;
+                }
+                break;
+            case SANITIZE_START_SLASH_SLASH:
+                // If there are three or more slashes, collapse them by setting
+                // the `write_index` position after the first. If the string
+                // ends, we will return a string with a single slash. If it
+                // doesn't, we can resume writing non-slash characters.
+                switch (cursor)
+                {
+                    case '.':
+                        state = SANITIZE_REST_SLASH_SLASH_DOT;
+                        break;
+                    case '/':
+                        write_index -= 1;
+                        state = SANITIZE_START_SLASH_SLASH_SLASHES;
+                        break;
+                    default:
+                        write_index += 1;
+                        state = SANITIZE_REST;
+                        break;
+                }
+                break;
+            case SANITIZE_START_SLASH_SLASH_DOT:
+                switch (cursor)
+                {
+                    case '/':
+                        state = SANITIZE_START_SLASH_SLASH;
+                        break;
+                    default:
+                        write_index += 2;
+                        state = SANITIZE_REST;
+                        break;
+                }
+            case SANITIZE_START_SLASH_SLASH_SLASHES:
+                // When we reach the first non-slash after three or more
+                // slashes, we have to strip the redundant ones. We can do this
+                // by setting `write_index` after the first and writing the rest
+                // of the path normally.
+                switch (cursor)
+                {
+                    case '.':
+                        state = SANITIZE_REST_SLASH_DOT;
+                        break;
+                    case '/':
+                        break;
+                    default:
+                        COW(length - (read_index - 1));  // don't need space for redundant slashes
+                        write_index = 1;  // use slash already at start of string
+                        PyUnicode_WRITE(kind, write, write_index, cursor);
+                        write_index += 1;
+                        state = SANITIZE_REST;
+                        break;
+                }
+                break;
+            case SANITIZE_START_SLASH_SLASHES_DOT:
+                switch (cursor)
+                {
+                    case '/':
+                        state = SANITIZE_REST;
+                        break;
+                    default:
+                        COW(length - (read_index - 1))
+                }
+                break;
+            case SANITIZE_REST:
+                // Once past the root of the path, normalize redundant slashes
+                // and slash-dot components.
+                switch (cursor)
+                {
+                    case '/':
+                        state = SANITIZE_REST_SLASH;
+                        break;
+                    default:
+                        if (write)
+                        {
+                            PyUnicode_WRITE(kind, write, write_index, cursor);
+                        }
+                        write_index += 1;
+                        break;
+                }
+                break;
+            case SANITIZE_REST_SLASH:
+                switch (cursor)
+                {
+                    case '/':
+                        state = SANITIZE_REST_SLASH_SLASHES;
+                        break;
+                    case '.':
+                        state = SANITIZE_REST_SLASH_DOT;
+                        break;
+                    default:
+                        if (write)
+                        {
+                            PyUnicode_WRITE(kind, write, write_index, '/');
+                        }
+                        write_index += 1;
+                        if (write)
+                        {
+                            PyUnicode_WRITE(kind, write, write_index, cursor);
+                        }
+                        write_index += 1;
+                        break;
+                }
+                break;
+            case SANITIZE_REST_SLASH_DOT:
+                switch (cursor)
+                {
+                    case '/':
+                        state = SANITIZE_REST_SLASH_SLASHES;
+                        break;
+                    default:
+                        if (write)
+                        {
+                            PyUnicode_WRITE(kind, write, write_index, '/');
+                        }
+                        write_index += 1;
+                        if (write)
+                        {
+                            PyUnicode_WRITE(kind, write, write_index, '.');
+                        }
+                        write_index += 1;
+                        if (write)
+                        {
+                            PyUnicode_WRITE(kind, write, write_index, cursor);
+                        }
+                        write_index += 1;
+                        state = SANITIZE_REST;
+                        break;
+                }
+                break;
+            case SANITIZE_REST_SLASH_SLASHES:
+                switch (cursor)
+                {
+                    case '/':
+                        break;
+                    case '.':
+                        state = SANITIZE_REST_SLASH_DOT;
+                        break;
+                    default:
+                        if (!owned)
+                        {
+                            COW(length - 2);  // could be smaller
+                        }
+                        PyUnicode_WRITE(kind, write, write_index, '/');
+                        write_index += 1;
+                        PyUnicode_WRITE(kind, write, write_index, cursor);
+                        write_index += 1;
+                        state = SANITIZE_REST;
+                        break;
+                }
+                break;
+        }
+
+        read_index += 1;
+    }
+
+#undef COW
+
+    if (owned)
+    {
+        if (owned != inner)
+        {
+            Py_DECREF(inner);
+        }
+        if (PyUnicode_Resize((PyObject **)&owned, write_index) != 0)
+        {
+            Py_DECREF(owned);
+            return NULL;
+        }
+        return owned;
+    }
+    else if (read_index != write_index)
+    {
+        PyObject *truncated = PyUnicode_FromKindAndData(kind, read, write_index);
+        Py_DECREF(inner);
+        return (PyUnicodeObject *)truncated;
+    }
+    else
+    {
+        return inner;
+    }
+}
+
 // MARK: Intrinsic
 
 int PyPosixFath_init(PyFathObject *self, PyObject *args, PyObject *kwargs)
@@ -18,7 +338,7 @@ int PyPosixFath_init(PyFathObject *self, PyObject *args, PyObject *kwargs)
     Py_ssize_t nargs = PyTuple_GET_SIZE(args);
     if (nargs == 0)
     {
-        self->inner = (PyUnicodeObject *)PyUnicode_New(0, 0);
+        self->inner = (PyUnicodeObject *)PyUnicode_FromString(".");
         return 0;
     }
 
@@ -46,7 +366,13 @@ int PyPosixFath_init(PyFathObject *self, PyObject *args, PyObject *kwargs)
             goto error;
         }
 
-        self->inner = (PyUnicodeObject *)fspath;
+        PyUnicodeObject *sanitized = sanitize((PyUnicodeObject *)fspath);
+        if (!sanitized)
+        {
+            goto error;
+        }
+
+        self->inner = sanitized;
         return 0;
     }
 
@@ -86,7 +412,19 @@ int PyPosixFath_init(PyFathObject *self, PyObject *args, PyObject *kwargs)
         }
 
         PyObject *inner = PyUnicode_Join(slash, args);
-        self->inner = (PyUnicodeObject *)inner;
+        Py_DECREF(slash);
+        if (!inner)
+        {
+            goto error;
+        }
+
+        PyUnicodeObject *sanitized = sanitize((PyUnicodeObject *)inner);
+        if (!sanitized)
+        {
+            goto error;
+        }
+
+        self->inner = sanitized;
         return 0;
     }
 
@@ -99,8 +437,8 @@ error:
 PyObject *PyPosixFath_repr(PyPosixFathObject *self)
 {
     PyObject *inner = PyUnicode_Type.tp_repr((PyObject *)self->inner);
-    PyObject *cls = PyObject_Type(self);
-    PyObject *cls_name = PyType_GetName(cls);
+    PyObject *cls = PyObject_Type((PyObject *)self);
+    PyObject *cls_name = PyType_GetName((PyTypeObject *)cls);
     PyObject *repr = PyUnicode_FromFormat("%U(%U)", cls_name, inner);
     Py_DECREF(inner);
     Py_DECREF(cls);
@@ -168,6 +506,52 @@ PyObject *PyPosixFath_name(PyPosixFathObject *self)
     {
         Py_ssize_t start = i + 1;
         return PyUnicode_Substring((PyObject *)self->inner, start, end);
+    }
+}
+
+PyObject *PyPosixFath_drive(PyPosixFathObject *self)
+{
+    return PyUnicode_FromString("");
+}
+
+PyObject *PyPosixFath_root(PyPosixFathObject *self)
+{
+    Py_ssize_t length = PyUnicode_GET_LENGTH(self->inner);
+    int kind = PyUnicode_KIND(self->inner);
+    void *data = PyUnicode_DATA(self->inner);
+
+    if (length == 0)
+    {
+        return PyUnicode_FromString("");
+    }
+    else if (length == 1)
+    {
+        if (PyUnicode_READ(kind, data, 0) == '/')
+        {
+            return PyUnicode_FromString("/");
+        }
+        else
+        {
+            return PyUnicode_FromString("");
+        }
+    }
+    else
+    {
+        if (PyUnicode_READ(kind, data, 0) == '/')
+        {
+            if (PyUnicode_READ(kind, data, 1) == '/')
+            {
+                return PyUnicode_FromString("//");
+            }
+            else
+            {
+                return PyUnicode_FromString("/");
+            }
+        }
+        else
+        {
+            return PyUnicode_FromString("");
+        }
     }
 }
 
@@ -271,6 +655,8 @@ static PyMethodDef PyPosixFath_methods[] = {
 };
 
 static PyGetSetDef PyPosixFath_getset[] = {
+    {"drive", (getter)PyPosixFath_drive, NULL, PyDoc_STR("Get the drive of the fath"), NULL},
+    {"root", (getter)PyPosixFath_root, NULL, PyDoc_STR("Get the root of the fath"), NULL},
     {"name", (getter)PyPosixFath_name, NULL, PyDoc_STR("Get the base name of the fath"), NULL},
     {"parent", (getter)PyPosixFath_parent, NULL, PyDoc_STR("Get the parent fath"), NULL},
     {NULL, NULL, NULL, NULL, NULL},
