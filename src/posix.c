@@ -1,7 +1,32 @@
 #define PY_SSIZE_T_CLEAN
 #include "Python.h"
 
+#include "normalize.h"
 #include "posix.h"
+
+// MARK: Normalize
+
+static PyUnicodeObject *normalize(PyUnicodeObject *inner)
+{
+    Py_ssize_t length = PyUnicode_GET_LENGTH(inner);
+
+    // Replace an empty string with a ".".
+    if (length == 0)
+    {
+        Py_DECREF(inner);
+        return (PyUnicodeObject *)PyUnicode_FromString(".");
+    }
+
+    // There is no invalid, one-character path.
+    if (length == 1)
+    {
+        return inner;
+    }
+
+    inner = normalize_slash(inner);
+    inner = normalize_dot(inner);
+    return inner;
+}
 
 // MARK: Intrinsic
 
@@ -18,7 +43,7 @@ int PyPosixFath_init(PyFathObject *self, PyObject *args, PyObject *kwargs)
     Py_ssize_t nargs = PyTuple_GET_SIZE(args);
     if (nargs == 0)
     {
-        self->inner = (PyUnicodeObject *)PyUnicode_New(0, 0);
+        self->inner = (PyUnicodeObject *)PyUnicode_FromString(".");
         return 0;
     }
 
@@ -46,7 +71,13 @@ int PyPosixFath_init(PyFathObject *self, PyObject *args, PyObject *kwargs)
             goto error;
         }
 
-        self->inner = (PyUnicodeObject *)fspath;
+        PyUnicodeObject *normalized = normalize((PyUnicodeObject *)fspath);
+        if (!normalized)
+        {
+            goto error;
+        }
+
+        self->inner = normalized;
         return 0;
     }
 
@@ -86,7 +117,19 @@ int PyPosixFath_init(PyFathObject *self, PyObject *args, PyObject *kwargs)
         }
 
         PyObject *inner = PyUnicode_Join(slash, args);
-        self->inner = (PyUnicodeObject *)inner;
+        Py_DECREF(slash);
+        if (!inner)
+        {
+            goto error;
+        }
+
+        PyUnicodeObject *normalized = normalize((PyUnicodeObject *)inner);
+        if (!normalized)
+        {
+            goto error;
+        }
+
+        self->inner = normalized;
         return 0;
     }
 
@@ -99,8 +142,8 @@ error:
 PyObject *PyPosixFath_repr(PyPosixFathObject *self)
 {
     PyObject *inner = PyUnicode_Type.tp_repr((PyObject *)self->inner);
-    PyObject *cls = PyObject_Type(self);
-    PyObject *cls_name = PyType_GetName(cls);
+    PyObject *cls = PyObject_Type((PyObject *)self);
+    PyObject *cls_name = PyType_GetName((PyTypeObject *)cls);
     PyObject *repr = PyUnicode_FromFormat("%U(%U)", cls_name, inner);
     Py_DECREF(inner);
     Py_DECREF(cls);
@@ -168,6 +211,52 @@ PyObject *PyPosixFath_name(PyPosixFathObject *self)
     {
         Py_ssize_t start = i + 1;
         return PyUnicode_Substring((PyObject *)self->inner, start, end);
+    }
+}
+
+PyObject *PyPosixFath_drive(PyPosixFathObject *self)
+{
+    return PyUnicode_FromString("");
+}
+
+PyObject *PyPosixFath_root(PyPosixFathObject *self)
+{
+    Py_ssize_t length = PyUnicode_GET_LENGTH(self->inner);
+    int kind = PyUnicode_KIND(self->inner);
+    void *data = PyUnicode_DATA(self->inner);
+
+    if (length == 0)
+    {
+        return PyUnicode_FromString("");
+    }
+    else if (length == 1)
+    {
+        if (PyUnicode_READ(kind, data, 0) == '/')
+        {
+            return PyUnicode_FromString("/");
+        }
+        else
+        {
+            return PyUnicode_FromString("");
+        }
+    }
+    else
+    {
+        if (PyUnicode_READ(kind, data, 0) == '/')
+        {
+            if (PyUnicode_READ(kind, data, 1) == '/')
+            {
+                return PyUnicode_FromString("//");
+            }
+            else
+            {
+                return PyUnicode_FromString("/");
+            }
+        }
+        else
+        {
+            return PyUnicode_FromString("");
+        }
     }
 }
 
@@ -271,6 +360,8 @@ static PyMethodDef PyPosixFath_methods[] = {
 };
 
 static PyGetSetDef PyPosixFath_getset[] = {
+    {"drive", (getter)PyPosixFath_drive, NULL, PyDoc_STR("Get the drive of the fath"), NULL},
+    {"root", (getter)PyPosixFath_root, NULL, PyDoc_STR("Get the root of the fath"), NULL},
     {"name", (getter)PyPosixFath_name, NULL, PyDoc_STR("Get the base name of the fath"), NULL},
     {"parent", (getter)PyPosixFath_parent, NULL, PyDoc_STR("Get the parent fath"), NULL},
     {NULL, NULL, NULL, NULL, NULL},
