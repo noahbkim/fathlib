@@ -1,6 +1,7 @@
 #define PY_SSIZE_T_CLEAN
 #include "Python.h"
 
+#include "cow.h"
 #include "posix.h"
 
 // MARK: Sanitizer
@@ -13,6 +14,7 @@ typedef enum
     SANITIZE_START_SLASH_DOT,
     SANITIZE_START_SLASH_SLASH,
     SANITIZE_START_SLASH_SLASH_DOT,
+    SANITIZE_START_SLASH_SLASH_SLASHES,
     SANITIZE_START_SLASH_SLASH_SLASHES_DOT,
     SANITIZE_REST,
     SANITIZE_REST_SLASH,
@@ -20,7 +22,6 @@ typedef enum
     SANITIZE_REST_SLASH_SLASHES,
     SANITIZE_REST_SLASH_SLASHES_DOT,
 } SanitizerState;
-
 
 static PyUnicodeObject *sanitize(PyUnicodeObject *inner)
 {
@@ -40,257 +41,277 @@ static PyUnicodeObject *sanitize(PyUnicodeObject *inner)
     }
 
     int kind = PyUnicode_KIND(inner);
-    void *read = PyUnicode_DATA(inner);
+    void *data = PyUnicode_DATA(inner);
 
+    Cow cow;
+    cow_construct(&cow, inner);
+
+    Py_ssize_t cursor = 0;
     SanitizerState state = SANITIZE_START;
-    PyUnicodeObject *owned = NULL;
-    void *write = NULL;
-    Py_ssize_t read_index = 0;
-    Py_ssize_t write_index = 0;
-
-#define COW(RESIZE) \
-    assert(!owned); \
-    if (Py_REFCNT(inner) == 1) \
-    { \
-        owned = inner; \
-        write = read; \
-    } \
-    else \
-    { \
-        owned = (PyUnicodeObject *)PyUnicode_FromKindAndData(kind, read, (RESIZE)); \
-        if (!owned) \
-        { \
-            return NULL; \
-        } \
-        write = PyUnicode_DATA(owned); \
-    }
-
-    while (read_index < length)
+    while (cursor < length)
     {
-        Py_UCS4 cursor = PyUnicode_READ(kind, read, read_index);
+        Py_UCS4 character = PyUnicode_READ(kind, data, cursor);
         switch (state)
         {
-            case SANITIZE_START:
-                // Always advance the first character, but possibly transition
-                // into a different state for starting slashes or dots.
-                switch (cursor)
-                {
-                    case '.':
-                        write_index += 1;
-                        state = SANITIZE_START_DOT;
-                        break;
-                    case '/':
-                        write_index += 1;
-                        state = SANITIZE_START_SLASH;
-                        break;
-                    default:
-                        write_index += 1;
-                        state = SANITIZE_REST;
-                        break;
-                }
+        case SANITIZE_START:
+            // Always advance the first character, but possibly transition
+            // into a different state for starting slashes or dots.
+            switch (cursor)
+            {
+            case '.':
+                cow_push(&cow, '.');
+                state = SANITIZE_START_DOT;
                 break;
-            case SANITIZE_START_DOT:
-                switch (cursor)
-                {
-                    case '/':
-                        state = SANITIZE_REST_SLASH;
-                        break;
-                    default:
-                        write_index += 2;
-                        state = SANITIZE_REST;
-                        break;
-                }
+            case '/':
+                cow_push(&cow, '/');
+                state = SANITIZE_START_SLASH;
                 break;
-            case SANITIZE_START_SLASH:
-                // Always advance the second character. Check if we need to
-                // handle a double-slash root or collapse three or more slashes.
-                switch (cursor)
-                {
-                    case '.':
-                        state = SANITIZE_START_SLASH_DOT;
-                        break;
-                    case '/':
-                        write_index += 1;
-                        state = SANITIZE_START_SLASH_SLASH;
-                        break;
-                    default:
-                        write_index += 1;
-                        state = SANITIZE_REST;
-                        break;
-                }
+            default:
+                cow_push(&cow, character);
+                state = SANITIZE_REST;
                 break;
-            case SANITIZE_START_SLASH_DOT:
-                switch (cursor)
-                {
-                    case '/':
-                        state = SANITIZE_START_SLASH;
-                        break;
-                    default:
-                        if (write_index + 2 == read_index)
-                        {
-                            write_index += 2;
-                        }
-                        else
-                        {
-                            COW(length - (read_index - 1));
-                            PyUnicode_WRITE(kind, write, write_index, '.');
-                            write_index += 1;
-                            PyUnicode_WRITE(kind, write, write_index, cursor);
-                            write_index += 1;
-                        }
-                        state = SANITIZE_REST;
-                        break;
-                }
+            }
+            break;
+        case SANITIZE_START_DOT:
+            switch (cursor)
+            {
+            case '/':
+                state = SANITIZE_REST_SLASH;
                 break;
-            case SANITIZE_START_SLASH_SLASH:
-                // If there are three or more slashes, collapse them by setting
-                // the `write_index` position after the first. If the string
-                // ends, we will return a string with a single slash. If it
-                // doesn't, we can resume writing non-slash characters.
-                switch (cursor)
-                {
-                    case '.':
-                        state = SANITIZE_REST_SLASH_SLASH_DOT;
-                        break;
-                    case '/':
-                        write_index -= 1;
-                        state = SANITIZE_START_SLASH_SLASH_SLASHES;
-                        break;
-                    default:
-                        write_index += 1;
-                        state = SANITIZE_REST;
-                        break;
-                }
+            default:
+                cow_push(&cow, '.');
+                cow_push(&cow, character);
+                state = SANITIZE_REST;
                 break;
-            case SANITIZE_START_SLASH_SLASH_DOT:
-                switch (cursor)
-                {
-                    case '/':
-                        state = SANITIZE_START_SLASH_SLASH;
-                        break;
-                    default:
-                        write_index += 2;
-                        state = SANITIZE_REST;
-                        break;
-                }
-            case SANITIZE_START_SLASH_SLASH_SLASHES:
-                // When we reach the first non-slash after three or more
-                // slashes, we have to strip the redundant ones. We can do this
-                // by setting `write_index` after the first and writing the rest
-                // of the path normally.
-                switch (cursor)
-                {
-                    case '.':
-                        state = SANITIZE_REST_SLASH_DOT;
-                        break;
-                    case '/':
-                        break;
-                    default:
-                        COW(length - (read_index - 1));  // don't need space for redundant slashes
-                        write_index = 1;  // use slash already at start of string
-                        PyUnicode_WRITE(kind, write, write_index, cursor);
-                        write_index += 1;
-                        state = SANITIZE_REST;
-                        break;
-                }
+            }
+            break;
+        case SANITIZE_START_SLASH:
+            // Always advance the second character. Check if we need to
+            // handle a double-slash root or collapse three or more slashes.
+            switch (cursor)
+            {
+            case '.':
+                state = SANITIZE_START_SLASH_DOT;
                 break;
-            case SANITIZE_START_SLASH_SLASHES_DOT:
-                switch (cursor)
-                {
-                    case '/':
-                        state = SANITIZE_REST;
-                        break;
-                    default:
-                        COW(length - (read_index - 1))
-                }
+            case '/':
+                cow_push(&cow, '/');
+                state = SANITIZE_START_SLASH_SLASH;
                 break;
-            case SANITIZE_REST:
-                // Once past the root of the path, normalize redundant slashes
-                // and slash-dot components.
-                switch (cursor)
-                {
-                    case '/':
-                        state = SANITIZE_REST_SLASH;
-                        break;
-                    default:
-                        if (write)
-                        {
-                            PyUnicode_WRITE(kind, write, write_index, cursor);
-                        }
-                        write_index += 1;
-                        break;
-                }
+            default:
+                cow_push(&cow, character);
+                state = SANITIZE_REST;
                 break;
-            case SANITIZE_REST_SLASH:
-                switch (cursor)
-                {
-                    case '/':
-                        state = SANITIZE_REST_SLASH_SLASHES;
-                        break;
-                    case '.':
-                        state = SANITIZE_REST_SLASH_DOT;
-                        break;
-                    default:
-                        if (write)
-                        {
-                            PyUnicode_WRITE(kind, write, write_index, '/');
-                        }
-                        write_index += 1;
-                        if (write)
-                        {
-                            PyUnicode_WRITE(kind, write, write_index, cursor);
-                        }
-                        write_index += 1;
-                        break;
-                }
+            }
+            break;
+        case SANITIZE_START_SLASH_DOT:
+            switch (cursor)
+            {
+            case '/':
+                state = SANITIZE_START_SLASH;
                 break;
-            case SANITIZE_REST_SLASH_DOT:
-                switch (cursor)
+            default:
+                if (write_index + 2 == read_index)
                 {
-                    case '/':
-                        state = SANITIZE_REST_SLASH_SLASHES;
-                        break;
-                    default:
-                        if (write)
-                        {
-                            PyUnicode_WRITE(kind, write, write_index, '/');
-                        }
-                        write_index += 1;
-                        if (write)
-                        {
-                            PyUnicode_WRITE(kind, write, write_index, '.');
-                        }
-                        write_index += 1;
-                        if (write)
-                        {
-                            PyUnicode_WRITE(kind, write, write_index, cursor);
-                        }
-                        write_index += 1;
-                        state = SANITIZE_REST;
-                        break;
+                    write_index += 2;
                 }
-                break;
-            case SANITIZE_REST_SLASH_SLASHES:
-                switch (cursor)
+                else
                 {
-                    case '/':
-                        break;
-                    case '.':
-                        state = SANITIZE_REST_SLASH_DOT;
-                        break;
-                    default:
-                        if (!owned)
-                        {
-                            COW(length - 2);  // could be smaller
-                        }
-                        PyUnicode_WRITE(kind, write, write_index, '/');
-                        write_index += 1;
-                        PyUnicode_WRITE(kind, write, write_index, cursor);
-                        write_index += 1;
-                        state = SANITIZE_REST;
-                        break;
+                    if (!write)
+                    {
+                        COW(length - (read_index - 1));
+                    }
+                    PyUnicode_WRITE(kind, write, write_index, '.');
+                    write_index += 1;
+                    PyUnicode_WRITE(kind, write, write_index, cursor);
+                    write_index += 1;
                 }
+                state = SANITIZE_REST;
                 break;
+            }
+            break;
+        case SANITIZE_START_SLASH_SLASH:
+            // If there are three or more slashes, collapse them by setting
+            // the `write_index` position after the first. If the string
+            // ends, we will return a string with a single slash. If it
+            // doesn't, we can resume writing non-slash characters.
+            switch (cursor)
+            {
+            case '.':
+                state = SANITIZE_START_SLASH_SLASH_DOT;
+                break;
+            case '/':
+                write_index -= 1;
+                state = SANITIZE_START_SLASH_SLASH_SLASHES;
+                break;
+            default:
+                write_index += 1;
+                state = SANITIZE_REST;
+                break;
+            }
+            break;
+        case SANITIZE_START_SLASH_SLASH_DOT:
+            switch (cursor)
+            {
+            case '/':
+                state = SANITIZE_START_SLASH_SLASH;
+                break;
+            default:
+                if (write_index + 2 == read_index)
+                {
+                    write_index += 2;
+                }
+                else
+                {
+                    if (!write)
+                    {
+                        COW(length - (read_index - 1));
+                    }
+                    PyUnicode_WRITE(kind, write, write_index, '.');
+                    write_index += 1;
+                    PyUnicode_WRITE(kind, write, write_index, cursor);
+                    write_index += 1;
+                }
+                state = SANITIZE_REST;
+                break;
+            }
+            break;
+        case SANITIZE_START_SLASH_SLASH_SLASHES:
+            // When we reach the first non-slash after three or more
+            // slashes, we have to strip the redundant ones. We can do this
+            // by setting `write_index` after the first and writing the rest
+            // of the path normally.
+            switch (cursor)
+            {
+            case '.':
+                state = SANITIZE_START_SLASH_SLASH_SLASHES_DOT;
+                break;
+            case '/':
+                break;
+            default:
+                if (!write)
+                {
+                    COW(length - (read_index - 1));
+                }
+                write_index = 1; // use slash already at start of string
+                PyUnicode_WRITE(kind, write, write_index, cursor);
+                write_index += 1;
+                state = SANITIZE_REST;
+                break;
+            }
+            break;
+        case SANITIZE_START_SLASH_SLASH_SLASHES_DOT:
+            switch (cursor)
+            {
+            case '/':
+                state = SANITIZE_REST;
+                break;
+            default:
+                if (write_index + 2 == read_index)
+                {
+                    write_index += 2;
+                }
+                else
+                {
+                    if (!write)
+                    {
+                        COW(length - (read_index - 1));
+                    }
+                    PyUnicode_WRITE(kind, write, write_index, '.');
+                    write_index += 1;
+                    PyUnicode_WRITE(kind, write, write_index, cursor);
+                    write_index += 1;
+                }
+                state = SANITIZE_REST;
+                break;
+            }
+            break;
+        case SANITIZE_REST:
+            // Once past the root of the path, normalize redundant slashes
+            // and slash-dot components.
+            switch (cursor)
+            {
+            case '/':
+                state = SANITIZE_REST_SLASH;
+                break;
+            default:
+                if (write)
+                {
+                    PyUnicode_WRITE(kind, write, write_index, cursor);
+                }
+                write_index += 1;
+                break;
+            }
+            break;
+        case SANITIZE_REST_SLASH:
+            switch (cursor)
+            {
+            case '/':
+                state = SANITIZE_REST_SLASH_SLASHES;
+                break;
+            case '.':
+                state = SANITIZE_REST_SLASH_DOT;
+                break;
+            default:
+                if (write)
+                {
+                    PyUnicode_WRITE(kind, write, write_index, '/');
+                }
+                write_index += 1;
+                if (write)
+                {
+                    PyUnicode_WRITE(kind, write, write_index, cursor);
+                }
+                write_index += 1;
+                break;
+            }
+            break;
+        case SANITIZE_REST_SLASH_DOT:
+            switch (cursor)
+            {
+            case '/':
+                state = SANITIZE_REST_SLASH_SLASHES;
+                break;
+            default:
+                if (write)
+                {
+                    PyUnicode_WRITE(kind, write, write_index, '/');
+                }
+                write_index += 1;
+                if (write)
+                {
+                    PyUnicode_WRITE(kind, write, write_index, '.');
+                }
+                write_index += 1;
+                if (write)
+                {
+                    PyUnicode_WRITE(kind, write, write_index, cursor);
+                }
+                write_index += 1;
+                state = SANITIZE_REST;
+                break;
+            }
+            break;
+        case SANITIZE_REST_SLASH_SLASHES:
+            switch (cursor)
+            {
+            case '/':
+                break;
+            case '.':
+                state = SANITIZE_REST_SLASH_DOT;
+                break;
+            default:
+                if (!owned)
+                {
+                    COW(length - 2); // could be smaller
+                }
+                PyUnicode_WRITE(kind, write, write_index, '/');
+                write_index += 1;
+                PyUnicode_WRITE(kind, write, write_index, cursor);
+                write_index += 1;
+                state = SANITIZE_REST;
+                break;
+            }
+            break;
         }
 
         read_index += 1;
