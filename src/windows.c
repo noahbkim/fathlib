@@ -5,12 +5,12 @@
 
 // MARK: Intrinsic
 
-int PyWindowsFath_init(PyFathObject *self, PyObject *args, PyObject *kwargs)
+int
+PyWindowsFath_init(PyFathObject *self, PyObject *args, PyObject *kwargs)
 {
     if (kwargs)
     {
-        PyErr_Format(PyExc_TypeError,
-                     "fathlib.WindowsFath takes no keyword arguments");
+        PyErr_Format(PyExc_TypeError, "fathlib.WindowsFath takes no keyword arguments");
         return -1;
     }
 
@@ -33,15 +33,13 @@ int PyWindowsFath_init(PyFathObject *self, PyObject *args, PyObject *kwargs)
         }
         if (PyBytes_CheckExact(fspath))
         {
-            PyErr_Format(PyExc_TypeError,
-                         "fathlib.Fath does not support bytes faths");
+            PyErr_Format(PyExc_TypeError, "fathlib.Fath does not support bytes faths");
             Py_DECREF(fspath);
             goto error;
         }
         if (!PyUnicode_CheckExact(fspath))
         {
-            PyErr_Format(PyExc_TypeError,
-                         "fathlib.Fath cannot be constructed from %T", fspath);
+            PyErr_Format(PyExc_TypeError, "fathlib.Fath cannot be constructed from %T", fspath);
             Py_DECREF(fspath);
             goto error;
         }
@@ -63,15 +61,13 @@ int PyWindowsFath_init(PyFathObject *self, PyObject *args, PyObject *kwargs)
             }
             if (PyBytes_CheckExact(fspath))
             {
-                PyErr_Format(PyExc_TypeError,
-                             "fathlib.WindowsFath does not support bytes faths");
+                PyErr_Format(PyExc_TypeError, "fathlib.WindowsFath does not support bytes faths");
                 Py_DECREF(fspath);
                 goto error;
             }
             if (!PyUnicode_CheckExact(fspath))
             {
-                PyErr_Format(PyExc_TypeError,
-                             "fathlib.WindowsFath cannot be constructed from %T", fspath);
+                PyErr_Format(PyExc_TypeError, "fathlib.WindowsFath cannot be constructed from %T", fspath);
                 Py_DECREF(fspath);
                 goto error;
             }
@@ -96,7 +92,8 @@ error:
     return -1;
 }
 
-PyObject *PyWindowsFath_repr(PyWindowsFathObject *self)
+PyObject *
+PyWindowsFath_repr(PyWindowsFathObject *self)
 {
     PyObject *inner = PyUnicode_Type.tp_repr((PyObject *)self->inner);
     PyObject *cls = PyObject_Type((PyObject *)self);
@@ -108,13 +105,15 @@ PyObject *PyWindowsFath_repr(PyWindowsFathObject *self)
     return repr;
 }
 
-Py_hash_t PyWindowsFath_hash(PyWindowsFathObject *self)
+Py_hash_t
+PyWindowsFath_hash(PyWindowsFathObject *self)
 {
     // TODO: figure out if this is a reasonable trick.
     return PyUnicode_Type.tp_hash((PyObject *)self->inner) + 1;
 }
 
-PyObject *PyWindowsFath_richcompare(PyWindowsFathObject *self, PyObject *other, int op)
+PyObject *
+PyWindowsFath_richcompare(PyWindowsFathObject *self, PyObject *other, int op)
 {
     if (PyWindowsFath_Check(other))
     {
@@ -130,7 +129,8 @@ PyObject *PyWindowsFath_richcompare(PyWindowsFathObject *self, PyObject *other, 
 
 // MARK: Methods
 
-Py_UCS4 PyWindowsFath_last(PyWindowsFathObject *self)
+Py_UCS4
+PyWindowsFath_last(PyWindowsFathObject *self)
 {
     Py_ssize_t length = PyUnicode_GET_LENGTH(self->inner);
     int kind = PyUnicode_KIND(self->inner);
@@ -138,7 +138,8 @@ Py_UCS4 PyWindowsFath_last(PyWindowsFathObject *self)
     return PyUnicode_READ(kind, data, length - 1);
 }
 
-PyObject *PyWindowsFath_name(PyWindowsFathObject *self)
+PyObject *
+PyWindowsFath_name(PyWindowsFathObject *self)
 {
     Py_ssize_t length = PyUnicode_GET_LENGTH(self->inner);
     int kind = PyUnicode_KIND(self->inner);
@@ -171,7 +172,8 @@ PyObject *PyWindowsFath_name(PyWindowsFathObject *self)
     }
 }
 
-PyObject *PyWindowsFath_parent(PyWindowsFathObject *self)
+PyObject *
+PyWindowsFath_parent(PyWindowsFathObject *self)
 {
     Py_ssize_t length = PyUnicode_GET_LENGTH(self->inner);
     int kind = PyUnicode_KIND(self->inner);
@@ -207,7 +209,8 @@ PyObject *PyWindowsFath_parent(PyWindowsFathObject *self)
     }
 }
 
-PyObject *PyWindowsFath_as_posix(PyWindowsFathObject *self)
+PyObject *
+PyWindowsFath_as_posix(PyWindowsFathObject *self)
 {
     PyObject *find = NULL;
     PyObject *replace = NULL;
@@ -241,7 +244,8 @@ done:
     return result;
 }
 
-PyObject *PyWindowsFath_joinpath(PyObject *head, PyObject *tail)
+PyObject *
+PyWindowsFath_joinpath(PyObject *head, PyObject *tail)
 {
     if (!PyWindowsFath_Check(head))
     {
@@ -292,17 +296,17 @@ done:
 // MARK: Declaration
 
 static PyMethodDef PyWindowsFath_methods[] = {
-    {"as_posix", (PyCFunction)PyWindowsFath_as_posix, METH_NOARGS, PyDoc_STR("Get the underlying string with posix slashes")},
-    {"joinpath", (PyCFunction)PyWindowsFath_joinpath, METH_O, PyDoc_STR("Append another path")},
-    {"__getstate__", (PyCFunction)PyFath_getstate, METH_NOARGS, PyDoc_STR("Serialize this fath for pickling")},
-    {"__setstate__", (PyCFunction)PyFath_setstate, METH_O, PyDoc_STR("Deserialize this fath for pickling")},
-    {NULL, NULL, 0, NULL},
+    {"as_posix",     (PyCFunction)PyWindowsFath_as_posix, METH_NOARGS, PyDoc_STR("Normalize the path with posix slashes")},
+    {"joinpath",     (PyCFunction)PyWindowsFath_joinpath, METH_O,      PyDoc_STR("Append another path")                  },
+    {"__getstate__", (PyCFunction)PyFath_getstate,        METH_NOARGS, PyDoc_STR("Serialize this fath for pickling")     },
+    {"__setstate__", (PyCFunction)PyFath_setstate,        METH_O,      PyDoc_STR("Deserialize this fath for pickling")   },
+    {NULL,           NULL,                                0,           NULL                                              },
 };
 
 static PyGetSetDef PyWindowsFath_getset[] = {
-    {"name", (getter)PyWindowsFath_name, NULL, PyDoc_STR("Get the base name of the fath"), NULL},
-    {"parent", (getter)PyWindowsFath_parent, NULL, PyDoc_STR("Get the parent fath"), NULL},
-    {NULL, NULL, NULL, NULL, NULL},
+    {"name",   (getter)PyWindowsFath_name,   NULL, PyDoc_STR("Get the base name of the fath"), NULL},
+    {"parent", (getter)PyWindowsFath_parent, NULL, PyDoc_STR("Get the parent fath"),           NULL},
+    {NULL,     NULL,                         NULL, NULL,                                       NULL},
 };
 
 static PyNumberMethods PyWindowsFath_as_number = {

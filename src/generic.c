@@ -5,7 +5,8 @@
 
 // MARK: Intrinsic
 
-PyFathObject *PyFath_new(PyTypeObject *type, PyObject *args, PyObject *kwargs)
+PyFathObject *
+PyFath_new(PyTypeObject *type, PyObject *args, PyObject *kwargs)
 {
     PyFathObject *self = (PyFathObject *)type->tp_alloc(type, 0);
     if (!self)
@@ -23,19 +24,22 @@ PyFathObject *PyFath_new(PyTypeObject *type, PyObject *args, PyObject *kwargs)
     return self;
 }
 
-PyObject *PyFath_str(PyFathObject *self)
+PyObject *
+PyFath_str(PyFathObject *self)
 {
     Py_INCREF(self->inner);
     return (PyObject *)self->inner;
 }
 
-PyObject *PyFath_getstate(PyFathObject *self)
+PyObject *
+PyFath_getstate(PyFathObject *self)
 {
     Py_INCREF(self->inner);
     return (PyObject *)self->inner;
 }
 
-PyObject *PyFath_setstate(PyFathObject *self, PyObject *state)
+PyObject *
+PyFath_setstate(PyFathObject *self, PyObject *state)
 {
     if (PyUnicode_Check(state))
     {
@@ -49,7 +53,8 @@ PyObject *PyFath_setstate(PyFathObject *self, PyObject *state)
     }
 }
 
-void PyFath_dealloc(PyFathObject *self)
+void
+PyFath_dealloc(PyFathObject *self)
 {
     Py_DECREF(self->inner);
     Py_TYPE(self)->tp_free((PyObject *)self);

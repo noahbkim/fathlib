@@ -1,0 +1,38 @@
+PointerAlignment: Right
+AlignArrayOfStructures: Left
+AlignConsecutiveShortCaseStatements:
+  Enabled: true
+  AcrossEmptyLines: true
+  AcrossComments: true
+AllowAllArgumentsOnNextLine: true
+AllowAllParametersOfDeclarationOnNextLine: true
+BinPackArguments: false
+BinPackLongBracedList: false
+BinPackParameters: false
+BreakAfterReturnType: TopLevelDefinitions
+BreakBeforeBraces: Custom
+BreakBeforeTernaryOperators: true
+BraceWrapping:
+  AfterCaseLabel: true
+  AfterClass: true
+  AfterControlStatement: Always
+  AfterEnum: true
+  AfterFunction: true
+  AfterStruct: true
+  AfterUnion: true
+  AfterExternBlock: true
+  BeforeCatch: true
+  BeforeElse: true
+  BeforeWhile: true
+  SplitEmptyFunction: true
+  SplitEmptyNamespace: true
+  SplitEmptyRecord: true
+ColumnLimit: 120
+IndentCaseLabels: false
+IndentGotoLabels: false
+IndentWidth: 4
+InsertNewlineAtEOF: true
+RemoveEmptyLinesInUnwrappedLines: true
+SortIncludes:
+  Enabled: true
+  IgnoreCase: true

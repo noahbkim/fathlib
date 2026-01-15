@@ -6,7 +6,8 @@
 
 // MARK: Normalize
 
-static PyUnicodeObject *normalize(PyUnicodeObject *inner)
+static PyUnicodeObject *
+normalize(PyUnicodeObject *inner)
 {
     Py_ssize_t length = PyUnicode_GET_LENGTH(inner);
 
@@ -30,12 +31,12 @@ static PyUnicodeObject *normalize(PyUnicodeObject *inner)
 
 // MARK: Intrinsic
 
-int PyPosixFath_init(PyFathObject *self, PyObject *args, PyObject *kwargs)
+int
+PyPosixFath_init(PyFathObject *self, PyObject *args, PyObject *kwargs)
 {
     if (kwargs)
     {
-        PyErr_Format(PyExc_TypeError,
-                     "fathlib.PosixFath takes no keyword arguments");
+        PyErr_Format(PyExc_TypeError, "fathlib.PosixFath takes no keyword arguments");
         return -1;
     }
 
@@ -58,15 +59,13 @@ int PyPosixFath_init(PyFathObject *self, PyObject *args, PyObject *kwargs)
         }
         if (PyBytes_CheckExact(fspath))
         {
-            PyErr_Format(PyExc_TypeError,
-                         "fathlib.Fath does not support bytes faths");
+            PyErr_Format(PyExc_TypeError, "fathlib.Fath does not support bytes faths");
             Py_DECREF(fspath);
             goto error;
         }
         if (!PyUnicode_CheckExact(fspath))
         {
-            PyErr_Format(PyExc_TypeError,
-                         "fathlib.Fath cannot be constructed from %T", fspath);
+            PyErr_Format(PyExc_TypeError, "fathlib.Fath cannot be constructed from %T", fspath);
             Py_DECREF(fspath);
             goto error;
         }
@@ -94,15 +93,13 @@ int PyPosixFath_init(PyFathObject *self, PyObject *args, PyObject *kwargs)
             }
             if (PyBytes_CheckExact(fspath))
             {
-                PyErr_Format(PyExc_TypeError,
-                             "fathlib.PosixFath does not support bytes faths");
+                PyErr_Format(PyExc_TypeError, "fathlib.PosixFath does not support bytes faths");
                 Py_DECREF(fspath);
                 goto error;
             }
             if (!PyUnicode_CheckExact(fspath))
             {
-                PyErr_Format(PyExc_TypeError,
-                             "fathlib.PosixFath cannot be constructed from %T", fspath);
+                PyErr_Format(PyExc_TypeError, "fathlib.PosixFath cannot be constructed from %T", fspath);
                 Py_DECREF(fspath);
                 goto error;
             }
@@ -139,7 +136,8 @@ error:
     return -1;
 }
 
-PyObject *PyPosixFath_repr(PyPosixFathObject *self)
+PyObject *
+PyPosixFath_repr(PyPosixFathObject *self)
 {
     PyObject *inner = PyUnicode_Type.tp_repr((PyObject *)self->inner);
     PyObject *cls = PyObject_Type((PyObject *)self);
@@ -151,13 +149,15 @@ PyObject *PyPosixFath_repr(PyPosixFathObject *self)
     return repr;
 }
 
-Py_hash_t PyPosixFath_hash(PyPosixFathObject *self)
+Py_hash_t
+PyPosixFath_hash(PyPosixFathObject *self)
 {
     // TODO: figure out if this is a reasonable trick.
     return PyUnicode_Type.tp_hash((PyObject *)self->inner) + 1;
 }
 
-PyObject *PyPosixFath_richcompare(PyPosixFathObject *self, PyObject *other, int op)
+PyObject *
+PyPosixFath_richcompare(PyPosixFathObject *self, PyObject *other, int op)
 {
     if (PyPosixFath_Check(other))
     {
@@ -173,7 +173,8 @@ PyObject *PyPosixFath_richcompare(PyPosixFathObject *self, PyObject *other, int 
 
 // MARK: Methods
 
-Py_UCS4 PyPosixFath_last(PyPosixFathObject *self)
+Py_UCS4
+PyPosixFath_last(PyPosixFathObject *self)
 {
     Py_ssize_t length = PyUnicode_GET_LENGTH(self->inner);
     int kind = PyUnicode_KIND(self->inner);
@@ -181,7 +182,8 @@ Py_UCS4 PyPosixFath_last(PyPosixFathObject *self)
     return PyUnicode_READ(kind, data, length - 1);
 }
 
-PyObject *PyPosixFath_name(PyPosixFathObject *self)
+PyObject *
+PyPosixFath_name(PyPosixFathObject *self)
 {
     Py_ssize_t length = PyUnicode_GET_LENGTH(self->inner);
     int kind = PyUnicode_KIND(self->inner);
@@ -214,12 +216,14 @@ PyObject *PyPosixFath_name(PyPosixFathObject *self)
     }
 }
 
-PyObject *PyPosixFath_drive(PyPosixFathObject *self)
+PyObject *
+PyPosixFath_drive(PyPosixFathObject *self)
 {
     return PyUnicode_FromString("");
 }
 
-PyObject *PyPosixFath_root(PyPosixFathObject *self)
+PyObject *
+PyPosixFath_root(PyPosixFathObject *self)
 {
     Py_ssize_t length = PyUnicode_GET_LENGTH(self->inner);
     int kind = PyUnicode_KIND(self->inner);
@@ -260,7 +264,8 @@ PyObject *PyPosixFath_root(PyPosixFathObject *self)
     }
 }
 
-PyObject *PyPosixFath_parent(PyPosixFathObject *self)
+PyObject *
+PyPosixFath_parent(PyPosixFathObject *self)
 {
     Py_ssize_t length = PyUnicode_GET_LENGTH(self->inner);
     int kind = PyUnicode_KIND(self->inner);
@@ -296,12 +301,14 @@ PyObject *PyPosixFath_parent(PyPosixFathObject *self)
     }
 }
 
-PyObject *PyPosixFath_as_posix(PyPosixFathObject *self)
+PyObject *
+PyPosixFath_as_posix(PyPosixFathObject *self)
 {
     return Py_NewRef(self->inner);
 }
 
-PyObject *PyPosixFath_joinpath(PyObject *head, PyObject *tail)
+PyObject *
+PyPosixFath_joinpath(PyObject *head, PyObject *tail)
 {
     if (!PyPosixFath_Check(head))
     {
@@ -352,19 +359,19 @@ done:
 // MARK: Declaration
 
 static PyMethodDef PyPosixFath_methods[] = {
-    {"as_posix", (PyCFunction)PyPosixFath_as_posix, METH_NOARGS, PyDoc_STR("Get the underlying string")},
-    {"joinpath", (PyCFunction)PyPosixFath_joinpath, METH_O, PyDoc_STR("Append another path")},
-    {"__getstate__", (PyCFunction)PyFath_getstate, METH_NOARGS, PyDoc_STR("Serialize this fath for pickling")},
-    {"__setstate__", (PyCFunction)PyFath_setstate, METH_O, PyDoc_STR("Deserialize this fath for pickling")},
-    {NULL, NULL, 0, NULL},
+    {"as_posix",     (PyCFunction)PyPosixFath_as_posix, METH_NOARGS, PyDoc_STR("Get the underlying string")         },
+    {"joinpath",     (PyCFunction)PyPosixFath_joinpath, METH_O,      PyDoc_STR("Append another path")               },
+    {"__getstate__", (PyCFunction)PyFath_getstate,      METH_NOARGS, PyDoc_STR("Serialize this fath for pickling")  },
+    {"__setstate__", (PyCFunction)PyFath_setstate,      METH_O,      PyDoc_STR("Deserialize this fath for pickling")},
+    {NULL,           NULL,                              0,           NULL                                           },
 };
 
 static PyGetSetDef PyPosixFath_getset[] = {
-    {"drive", (getter)PyPosixFath_drive, NULL, PyDoc_STR("Get the drive of the fath"), NULL},
-    {"root", (getter)PyPosixFath_root, NULL, PyDoc_STR("Get the root of the fath"), NULL},
-    {"name", (getter)PyPosixFath_name, NULL, PyDoc_STR("Get the base name of the fath"), NULL},
-    {"parent", (getter)PyPosixFath_parent, NULL, PyDoc_STR("Get the parent fath"), NULL},
-    {NULL, NULL, NULL, NULL, NULL},
+    {"drive",  (getter)PyPosixFath_drive,  NULL, PyDoc_STR("Get the drive of the fath"),     NULL},
+    {"root",   (getter)PyPosixFath_root,   NULL, PyDoc_STR("Get the root of the fath"),      NULL},
+    {"name",   (getter)PyPosixFath_name,   NULL, PyDoc_STR("Get the base name of the fath"), NULL},
+    {"parent", (getter)PyPosixFath_parent, NULL, PyDoc_STR("Get the parent fath"),           NULL},
+    {NULL,     NULL,                       NULL, NULL,                                       NULL},
 };
 
 static PyNumberMethods PyPosixFath_as_number = {

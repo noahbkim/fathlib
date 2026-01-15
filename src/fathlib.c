@@ -6,7 +6,8 @@
 #include "windows.h"
 
 static PyMethodDef PyFathlibModule_Methods[] = {
-    {NULL, NULL, 0, NULL}};
+    {NULL, NULL, 0, NULL}
+};
 
 static struct PyModuleDef PyFathlibModule = {
     PyModuleDef_HEAD_INIT,
