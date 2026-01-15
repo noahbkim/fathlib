@@ -1,4 +1,6 @@
 .venv
+.vscode/c_cpp_properties.json
+.clangd
 dist
 *.egg-info
 *.so

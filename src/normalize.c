@@ -47,7 +47,7 @@ cow_consume(PyUnicodeObject *read,
         {
             Py_DECREF(read);
         }
-        if (PyUnicode_Resize((PyObject **)&write, write_index) != 0)
+        if (write_index != read_size && PyUnicode_Resize((PyObject **)&write, write_index) != 0)
         {
             Py_DECREF(write);
             return NULL;
