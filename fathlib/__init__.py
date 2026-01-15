@@ -4,8 +4,10 @@ import ntpath
 import os
 import posixpath
 
-from .core import PosixFath
-from .core import WindowsFath
+from .core import PosixFath as PosixFath
+from .core import WindowsFath as WindowsFath
+from .core import normalize_dot as normalize_dot
+from .core import normalize_slash as normalize_slash
 
 
 class PurePosixPath(PosixFath):

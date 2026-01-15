@@ -24,9 +24,69 @@ normalize(PyUnicodeObject *inner)
         return inner;
     }
 
-    inner = normalize_slash(inner);
-    inner = normalize_dot(inner);
+    inner = _normalize_slash(inner);
+    inner = _normalize_dot(inner);
     return inner;
+}
+
+static PyUnicodeObject *
+fspath(PyObject *item)
+{
+    PyObject *fspath = PyOS_FSPath(item);
+    if (!fspath)
+    {
+        return NULL;
+    }
+
+    if (!PyUnicode_Check(fspath))
+    {
+        PyErr_Format(PyExc_TypeError, "fathlib does not support %T paths", fspath);
+        goto error;
+    }
+
+    return (PyUnicodeObject *)fspath;
+
+error:
+    Py_DECREF(fspath);
+    return NULL;
+}
+
+static PyUnicodeObject *
+join(PyObject *items, int count)
+{
+    PyObject *slash = PyUnicode_FromString("/");
+    if (!slash)
+    {
+        return NULL;
+    }
+
+    Py_ssize_t i;
+    for (i = 0; i < count; ++i)
+    {
+        PyUnicodeObject *path = fspath(PyTuple_GET_ITEM(items, i));
+        if (!path)
+        {
+            goto error;
+        }
+        PyTuple_SET_ITEM(items, i, path);
+    }
+
+    PyObject *inner = PyUnicode_Join(slash, items);
+    if (!inner)
+    {
+        goto error;
+    }
+
+    return (PyUnicodeObject *)inner;
+
+error:
+    Py_DECREF(slash);
+    for (Py_ssize_t j = 0; j < i; ++j)
+    {
+        Py_DECREF(PyTuple_GET_ITEM(items, j));
+    }
+
+    return NULL;
 }
 
 // MARK: Intrinsic
@@ -52,25 +112,14 @@ PyPosixFath_init(PyFathObject *self, PyObject *args, PyObject *kwargs)
     else if (nargs == 1)
     {
         PyObject *arg = PyTuple_GET_ITEM(args, 0);
-        PyObject *fspath = PyOS_FSPath(arg);
-        if (!fspath)
+
+        PyUnicodeObject *path = fspath(arg);
+        if (!path)
         {
-            goto error;
-        }
-        if (PyBytes_CheckExact(fspath))
-        {
-            PyErr_Format(PyExc_TypeError, "fathlib.Fath does not support bytes faths");
-            Py_DECREF(fspath);
-            goto error;
-        }
-        if (!PyUnicode_CheckExact(fspath))
-        {
-            PyErr_Format(PyExc_TypeError, "fathlib.Fath cannot be constructed from %T", fspath);
-            Py_DECREF(fspath);
             goto error;
         }
 
-        PyUnicodeObject *normalized = normalize((PyUnicodeObject *)fspath);
+        PyUnicodeObject *normalized = normalize(path);
         if (!normalized)
         {
             goto error;
@@ -83,44 +132,13 @@ PyPosixFath_init(PyFathObject *self, PyObject *args, PyObject *kwargs)
     // Join the `__fspath__` of multiple arguments.
     if (nargs > 1)
     {
-        assert(Py_REFCNT(args) == 1);
-        for (Py_ssize_t i = 0; i < nargs; ++i)
-        {
-            PyObject *fspath = PyOS_FSPath(PyTuple_GET_ITEM(args, i));
-            if (!fspath)
-            {
-                goto error;
-            }
-            if (PyBytes_CheckExact(fspath))
-            {
-                PyErr_Format(PyExc_TypeError, "fathlib.PosixFath does not support bytes faths");
-                Py_DECREF(fspath);
-                goto error;
-            }
-            if (!PyUnicode_CheckExact(fspath))
-            {
-                PyErr_Format(PyExc_TypeError, "fathlib.PosixFath cannot be constructed from %T", fspath);
-                Py_DECREF(fspath);
-                goto error;
-            }
-            Py_DECREF(PyTuple_GET_ITEM(args, i));
-            PyTuple_SET_ITEM(args, i, fspath);
-        }
-
-        PyObject *slash = PyUnicode_FromString("/");
-        if (!slash)
+        PyUnicodeObject *joined = join(args, nargs);
+        if (!joined)
         {
             goto error;
         }
 
-        PyObject *inner = PyUnicode_Join(slash, args);
-        Py_DECREF(slash);
-        if (!inner)
-        {
-            goto error;
-        }
-
-        PyUnicodeObject *normalized = normalize((PyUnicodeObject *)inner);
+        PyUnicodeObject *normalized = normalize(joined);
         if (!normalized)
         {
             goto error;
@@ -131,8 +149,6 @@ PyPosixFath_init(PyFathObject *self, PyObject *args, PyObject *kwargs)
     }
 
 error:
-    Py_XDECREF(args);
-    Py_XDECREF(kwargs);
     return -1;
 }
 

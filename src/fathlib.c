@@ -1,12 +1,14 @@
 #define PY_SSIZE_T_CLEAN
 #include "Python.h"
 
-#include "generic.h"
+#include "normalize.h"
 #include "posix.h"
 #include "windows.h"
 
-static PyMethodDef PyFathlibModule_Methods[] = {
-    {NULL, NULL, 0, NULL}
+static PyMethodDef PyFathlibModule_methods[] = {
+    {"normalize_slash", (PyCFunction)normalize_slash, METH_O, PyDoc_STR("Normalize forward slashes in a POSIX path")},
+    {"normalize_dot",   (PyCFunction)normalize_dot,   METH_O, PyDoc_STR("Normalize dot components in a POSIX path") },
+    {NULL,              NULL,                         0,      NULL                                                  }
 };
 
 static struct PyModuleDef PyFathlibModule = {
@@ -14,7 +16,7 @@ static struct PyModuleDef PyFathlibModule = {
     .m_name = "core",
     .m_doc = PyDoc_STR("Bindings for core Fathlib types."),
     .m_size = -1, // Size of per-interpreter state
-    .m_methods = PyFathlibModule_Methods,
+    .m_methods = PyFathlibModule_methods,
 };
 
 PyMODINIT_FUNC
@@ -24,12 +26,12 @@ PyInit_core()
 
     if (PyType_Ready(&PyPosixFath_Type) < 0)
     {
-        return NULL;
+        goto error;
     }
 
     if (PyType_Ready(&PyWindowsFath_Type) < 0)
     {
-        return NULL;
+        goto error;
     }
 
     module = PyModule_Create(&PyFathlibModule);
@@ -38,12 +40,12 @@ PyInit_core()
         goto error;
     }
 
-    if (PyModule_AddObjectRef(module, "PosixFath", (PyObject *)&PyPosixFath_Type) < 0)
+    if (PyModule_AddObjectRef(module, "PosixFath", (PyObject *)&PyPosixFath_Type) != 0)
     {
         goto error;
     }
 
-    if (PyModule_AddObjectRef(module, "WindowsFath", (PyObject *)&PyWindowsFath_Type) < 0)
+    if (PyModule_AddObjectRef(module, "WindowsFath", (PyObject *)&PyWindowsFath_Type) != 0)
     {
         goto error;
     }
