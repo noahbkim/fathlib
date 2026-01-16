@@ -10,4 +10,7 @@ PyObject *normalize_slash(PyObject *module, PyObject *read);
 PyUnicodeObject *_normalize_dot(PyUnicodeObject *read);
 PyObject *normalize_dot(PyObject *module, PyObject *read);
 
+PyUnicodeObject *_normalize_posix(PyUnicodeObject *read);
+PyObject *normalize_posix(PyObject *module, PyObject *read);
+
 #endif

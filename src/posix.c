@@ -1,93 +1,9 @@
 #define PY_SSIZE_T_CLEAN
 #include "Python.h"
 
+#include "join.h"
 #include "normalize.h"
 #include "posix.h"
-
-// MARK: Normalize
-
-static PyUnicodeObject *
-normalize(PyUnicodeObject *inner)
-{
-    Py_ssize_t length = PyUnicode_GET_LENGTH(inner);
-
-    // Replace an empty string with a ".".
-    if (length == 0)
-    {
-        Py_DECREF(inner);
-        return (PyUnicodeObject *)PyUnicode_FromString(".");
-    }
-
-    // There is no invalid, one-character path.
-    if (length == 1)
-    {
-        return inner;
-    }
-
-    inner = _normalize_slash(inner);
-    inner = _normalize_dot(inner);
-    return inner;
-}
-
-static PyUnicodeObject *
-fspath(PyObject *item)
-{
-    PyObject *fspath = PyOS_FSPath(item);
-    if (!fspath)
-    {
-        return NULL;
-    }
-
-    if (!PyUnicode_Check(fspath))
-    {
-        PyErr_Format(PyExc_TypeError, "fathlib does not support %T paths", fspath);
-        goto error;
-    }
-
-    return (PyUnicodeObject *)fspath;
-
-error:
-    Py_DECREF(fspath);
-    return NULL;
-}
-
-static PyUnicodeObject *
-join(PyObject *items, int count)
-{
-    PyObject *slash = PyUnicode_FromString("/");
-    if (!slash)
-    {
-        return NULL;
-    }
-
-    Py_ssize_t i;
-    for (i = 0; i < count; ++i)
-    {
-        PyUnicodeObject *path = fspath(PyTuple_GET_ITEM(items, i));
-        if (!path)
-        {
-            goto error;
-        }
-        PyTuple_SET_ITEM(items, i, path);
-    }
-
-    PyObject *inner = PyUnicode_Join(slash, items);
-    if (!inner)
-    {
-        goto error;
-    }
-
-    return (PyUnicodeObject *)inner;
-
-error:
-    Py_DECREF(slash);
-    for (Py_ssize_t j = 0; j < i; ++j)
-    {
-        Py_DECREF(PyTuple_GET_ITEM(items, j));
-    }
-
-    return NULL;
-}
 
 // MARK: Intrinsic
 
@@ -113,13 +29,13 @@ PyPosixFath_init(PyFathObject *self, PyObject *args, PyObject *kwargs)
     {
         PyObject *arg = PyTuple_GET_ITEM(args, 0);
 
-        PyUnicodeObject *path = fspath(arg);
+        PyUnicodeObject *path = _fspath(arg);
         if (!path)
         {
             goto error;
         }
 
-        PyUnicodeObject *normalized = normalize(path);
+        PyUnicodeObject *normalized = _normalize_posix(path);
         if (!normalized)
         {
             goto error;
@@ -132,13 +48,13 @@ PyPosixFath_init(PyFathObject *self, PyObject *args, PyObject *kwargs)
     // Join the `__fspath__` of multiple arguments.
     if (nargs > 1)
     {
-        PyUnicodeObject *joined = join(args, nargs);
+        PyUnicodeObject *joined = _join_posix(args, nargs);
         if (!joined)
         {
             goto error;
         }
 
-        PyUnicodeObject *normalized = normalize(joined);
+        PyUnicodeObject *normalized = _normalize_posix(joined);
         if (!normalized)
         {
             goto error;

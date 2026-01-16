@@ -1,5 +1,4 @@
 #include "normalize.h"
-#include "sysmodule.h"
 
 // MARK: Cow
 
@@ -228,17 +227,30 @@ _normalize_slash(PyUnicodeObject *read)
 PyObject *
 normalize_slash(PyObject *module, PyObject *read)
 {
-    if (PyUnicode_Check(read))
-    {
-        return (PyObject *)_normalize_slash((PyUnicodeObject *)read);
-    }
-    else
+    if (!PyUnicode_Check(read))
     {
         PyObject *cls = PyObject_Type(read);
         PyObject *cls_name = PyType_GetName((PyTypeObject *)cls);
         PyErr_Format(PyExc_TypeError, "expected str, not %U", cls_name);
         return NULL;
     }
+
+    Py_ssize_t length = PyUnicode_GET_LENGTH(read);
+
+    // Replace an empty string with a ".".
+    if (length == 0)
+    {
+        Py_DECREF(read);
+        return PyUnicode_FromString(".");
+    }
+
+    // There is no invalid, one-character path.
+    if (length == 1)
+    {
+        return read;
+    }
+
+    return (PyObject *)_normalize_slash((PyUnicodeObject *)read);
 }
 
 // MARK: Dot
@@ -337,15 +349,77 @@ _normalize_dot(PyUnicodeObject *read)
 PyObject *
 normalize_dot(PyObject *module, PyObject *read)
 {
-    if (PyUnicode_Check(read))
-    {
-        return (PyObject *)_normalize_dot((PyUnicodeObject *)read);
-    }
-    else
+    if (!PyUnicode_Check(read))
     {
         PyObject *cls = PyObject_Type(read);
         PyObject *cls_name = PyType_GetName((PyTypeObject *)cls);
         PyErr_Format(PyExc_TypeError, "expected str, not %U", cls_name);
         return NULL;
     }
+
+    Py_ssize_t length = PyUnicode_GET_LENGTH(read);
+
+    // Replace an empty string with a ".".
+    if (length == 0)
+    {
+        Py_DECREF(read);
+        return PyUnicode_FromString(".");
+    }
+
+    // There is no invalid, one-character path.
+    if (length == 1)
+    {
+        return read;
+    }
+
+    return (PyObject *)_normalize_dot((PyUnicodeObject *)read);
+}
+
+// MARK: Posix
+
+PyUnicodeObject *
+_normalize_posix(PyUnicodeObject *read)
+{
+    read = _normalize_slash(read);
+    if (!read)
+    {
+        return NULL;
+    }
+
+    read = _normalize_dot(read);
+    if (!read)
+    {
+        return NULL;
+    }
+
+    return read;
+}
+
+PyObject *
+normalize_posix(PyObject *module, PyObject *read)
+{
+    if (!PyUnicode_Check(read))
+    {
+        PyObject *cls = PyObject_Type(read);
+        PyObject *cls_name = PyType_GetName((PyTypeObject *)cls);
+        PyErr_Format(PyExc_TypeError, "expected str, not %U", cls_name);
+        return NULL;
+    }
+
+    Py_ssize_t length = PyUnicode_GET_LENGTH(read);
+
+    // Replace an empty string with a ".".
+    if (length == 0)
+    {
+        Py_DECREF(read);
+        return PyUnicode_FromString(".");
+    }
+
+    // There is no invalid, one-character path.
+    if (length == 1)
+    {
+        return read;
+    }
+
+    return (PyObject *)_normalize_posix((PyUnicodeObject *)read);
 }
