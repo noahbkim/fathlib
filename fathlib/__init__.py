@@ -9,6 +9,10 @@ from .core import WindowsFath as WindowsFath
 from .core import posix_normalize_dot as posix_normalize_dot
 from .core import posix_normalize_slash as posix_normalize_slash
 from .core import posix_normalize as posix_normalize
+from .core import posix_join as posix_join
+from .core import windows_normalize_dot as windows_normalize_dot
+from .core import windows_normalize_slash as windows_normalize_slash
+from .core import windows_normalize as windows_normalize
 
 
 class PurePosixPath(PosixFath):
