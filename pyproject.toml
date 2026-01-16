@@ -16,19 +16,21 @@ packages = ["fathlib"]
 [[tool.setuptools.ext-modules]]
 name = "fathlib.core"
 sources = [
+    "src/posix/fath.c",
+    "src/posix/join.c",
+    "src/posix/normalize.c",
+    "src/windows/fath.c",
+    "src/common.c",
+    "src/fath.c",
     "src/fathlib.c",
-    "src/generic.c",
-    "src/join.c",
-    "src/normalize.c",
-    "src/posix.c",
-    "src/windows.c",
+]
+depends = [
+    "include/posix/fath.h",
+    "include/posix/join.h",
+    "include/posix/normalize.h",
+    "include/windows/fath.h",
+    "include/common.h",
+    "include/fath.h",
 ]
 include-dirs = ["include"]
-depends = [
-    "include/generic.h",
-    "include/join.h",
-    "include/normalize.h",
-    "include/posix.h",
-    "include/windows.h",
-]
 extra-compile-args = ["-Wall", "-std=c17"]

@@ -1,5 +1,5 @@
-#ifndef GENERIC_H
-#define GENERIC_H
+#ifndef FATH_H
+#define FATH_H
 
 #define PY_SSIZE_T_CLEAN
 #include "Python.h"

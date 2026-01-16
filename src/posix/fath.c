@@ -1,9 +1,10 @@
 #define PY_SSIZE_T_CLEAN
 #include "Python.h"
 
-#include "join.h"
-#include "normalize.h"
-#include "posix.h"
+#include "common.h"
+#include "posix/fath.h"
+#include "posix/join.h"
+#include "posix/normalize.h"
 
 // MARK: Intrinsic
 
@@ -35,7 +36,7 @@ PyPosixFath_init(PyFathObject *self, PyObject *args, PyObject *kwargs)
             goto error;
         }
 
-        PyUnicodeObject *normalized = _normalize_posix(path);
+        PyUnicodeObject *normalized = _posix_normalize(path);
         if (!normalized)
         {
             goto error;
@@ -48,13 +49,13 @@ PyPosixFath_init(PyFathObject *self, PyObject *args, PyObject *kwargs)
     // Join the `__fspath__` of multiple arguments.
     if (nargs > 1)
     {
-        PyUnicodeObject *joined = _join_posix(args, nargs);
+        PyUnicodeObject *joined = _posix_join(args, nargs);
         if (!joined)
         {
             goto error;
         }
 
-        PyUnicodeObject *normalized = _normalize_posix(joined);
+        PyUnicodeObject *normalized = _posix_normalize(joined);
         if (!normalized)
         {
             goto error;

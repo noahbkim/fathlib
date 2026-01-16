@@ -1,30 +1,10 @@
-#include "join.h"
-
-// MARK: fspath
-
-PyUnicodeObject *
-_fspath(PyObject *item)
-{
-    PyObject *fspath = PyOS_FSPath(item);
-    if (!fspath)
-    {
-        return NULL;
-    }
-
-    if (!PyUnicode_Check(fspath))
-    {
-        PyErr_Format(PyExc_TypeError, "fathlib does not support %T paths", fspath);
-        Py_DECREF(fspath);
-        return NULL;
-    }
-
-    return (PyUnicodeObject *)fspath;
-}
+#include "posix/join.h"
+#include "common.h"
 
 // MARK: POSIX
 
 PyUnicodeObject *
-_join_posix(PyObject *items, int count)
+_posix_join(PyObject *items, int count)
 {
     PyObject *slash = PyUnicode_FromString("/");
     if (!slash)
@@ -62,7 +42,7 @@ error:
 }
 
 PyObject *
-join_posix(PyObject *module, PyObject *items)
+posix_join(PyObject *module, PyObject *items)
 {
     Py_ssize_t count = PyTuple_GET_SIZE(items);
     if (count == 0)
@@ -71,6 +51,6 @@ join_posix(PyObject *module, PyObject *items)
     }
     else
     {
-        return (PyObject *)_join_posix(items, count);
+        return (PyObject *)_posix_join(items, count);
     }
 }

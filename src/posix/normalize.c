@@ -1,69 +1,5 @@
-#include "normalize.h"
-
-// MARK: Cow
-
-int
-cow_copy(PyUnicodeObject *read,
-         Py_ssize_t read_size,
-         unsigned int read_kind,
-         void *read_data,
-         PyUnicodeObject **write,
-         void **write_data)
-{
-    if (*write)
-    {
-        return 0;
-    }
-    else if (Py_REFCNT(read) == 1 && PyUnicode_CheckExact(read))
-    {
-        *write = read;
-        *write_data = read_data;
-        return 0;
-    }
-    else
-    {
-        *write = (PyUnicodeObject *)PyUnicode_FromKindAndData(read_kind, read_data, read_size);
-        if (!*write)
-        {
-            return -1;
-        }
-        *write_data = PyUnicode_DATA(*write);
-        return 0;
-    }
-}
-
-PyUnicodeObject *
-cow_consume(PyUnicodeObject *read,
-            Py_ssize_t read_size,
-            unsigned int read_kind,
-            void *read_data,
-            PyUnicodeObject *write,
-            Py_ssize_t write_index)
-{
-    if (write)
-    {
-        if (write == read)
-        {
-            Py_INCREF(read);
-        }
-        if (write_index != read_size && PyUnicode_Resize((PyObject **)&write, write_index) != 0)
-        {
-            Py_DECREF(write);
-            return NULL;
-        }
-        return write;
-    }
-    else if (write_index != read_size)
-    {
-        PyObject *truncated = PyUnicode_FromKindAndData(read_kind, read_data, write_index);
-        return (PyUnicodeObject *)truncated;
-    }
-    else
-    {
-        Py_INCREF(read);
-        return read;
-    }
-}
+#include "posix/normalize.h"
+#include "common.h"
 
 // MARK: Slashes
 
@@ -79,7 +15,7 @@ typedef enum
 } NormalizeSlash;
 
 PyUnicodeObject *
-_normalize_slash(PyUnicodeObject *read)
+_posix_normalize_slash(PyUnicodeObject *read)
 {
     unsigned int read_kind = PyUnicode_KIND(read);
     Py_ssize_t read_size = PyUnicode_GET_LENGTH(read);
@@ -147,7 +83,7 @@ _normalize_slash(PyUnicodeObject *read)
             // `cursor` after the first and writing the rest of the path.
             if (character != '/')
             {
-                int status = cow_copy(read, read_size, read_kind, read_data, &write, &write_data);
+                int status = _cow_copy(read, read_size, read_kind, read_data, &write, &write_data);
                 if (status != 0)
                 {
                     return NULL;
@@ -206,7 +142,7 @@ _normalize_slash(PyUnicodeObject *read)
                 state = NORMALIZE_SLASH_REST;
                 if (!write)
                 {
-                    int status = cow_copy(read, read_size, read_kind, read_data, &write, &write_data);
+                    int status = _cow_copy(read, read_size, read_kind, read_data, &write, &write_data);
                     if (status != 0)
                     {
                         return NULL;
@@ -221,11 +157,11 @@ _normalize_slash(PyUnicodeObject *read)
         }
         read_index += 1;
     }
-    return cow_consume(read, read_size, read_kind, read_data, write, write_index);
+    return _cow_consume(read, read_size, read_kind, read_data, write, write_index);
 }
 
 PyObject *
-normalize_slash(PyObject *module, PyObject *read)
+posix_normalize_slash(PyObject *module, PyObject *read)
 {
     if (!PyUnicode_Check(read))
     {
@@ -235,7 +171,7 @@ normalize_slash(PyObject *module, PyObject *read)
         return NULL;
     }
 
-    return (PyObject *)_normalize_slash((PyUnicodeObject *)read);
+    return (PyObject *)_posix_normalize_slash((PyUnicodeObject *)read);
 }
 
 // MARK: Dot
@@ -248,7 +184,7 @@ typedef enum
 } NormalizeDot;
 
 PyUnicodeObject *
-_normalize_dot(PyUnicodeObject *read)
+_posix_normalize_dot(PyUnicodeObject *read)
 {
     unsigned int read_kind = PyUnicode_KIND(read);
     Py_ssize_t read_size = PyUnicode_GET_LENGTH(read);
@@ -313,7 +249,7 @@ _normalize_dot(PyUnicodeObject *read)
             {
                 if (!write)
                 {
-                    int status = cow_copy(read, read_size, read_kind, read_data, &write, &write_data);
+                    int status = _cow_copy(read, read_size, read_kind, read_data, &write, &write_data);
                     if (status != 0)
                     {
                         return NULL;
@@ -335,11 +271,11 @@ _normalize_dot(PyUnicodeObject *read)
         write_index = 1;
     }
 
-    return cow_consume(read, read_size, read_kind, read_data, write, write_index);
+    return _cow_consume(read, read_size, read_kind, read_data, write, write_index);
 }
 
 PyObject *
-normalize_dot(PyObject *module, PyObject *read)
+posix_normalize_dot(PyObject *module, PyObject *read)
 {
     if (!PyUnicode_Check(read))
     {
@@ -349,13 +285,13 @@ normalize_dot(PyObject *module, PyObject *read)
         return NULL;
     }
 
-    return (PyObject *)_normalize_dot((PyUnicodeObject *)read);
+    return (PyObject *)_posix_normalize_dot((PyUnicodeObject *)read);
 }
 
 // MARK: Posix
 
 PyUnicodeObject *
-_normalize_posix(PyUnicodeObject *read)
+_posix_normalize(PyUnicodeObject *read)
 {
     Py_ssize_t length = PyUnicode_GET_LENGTH(read);
 
@@ -372,13 +308,13 @@ _normalize_posix(PyUnicodeObject *read)
         return read;
     }
 
-    read = _normalize_slash(read);
+    read = _posix_normalize_slash(read);
     if (!read)
     {
         return NULL;
     }
 
-    read = _normalize_dot(read);
+    read = _posix_normalize_dot(read);
     if (!read)
     {
         return NULL;
@@ -388,7 +324,7 @@ _normalize_posix(PyUnicodeObject *read)
 }
 
 PyObject *
-normalize_posix(PyObject *module, PyObject *read)
+posix_normalize(PyObject *module, PyObject *read)
 {
     if (!PyUnicode_Check(read))
     {
@@ -398,5 +334,5 @@ normalize_posix(PyObject *module, PyObject *read)
         return NULL;
     }
 
-    return (PyObject *)_normalize_posix((PyUnicodeObject *)read);
+    return (PyObject *)_posix_normalize((PyUnicodeObject *)read);
 }
