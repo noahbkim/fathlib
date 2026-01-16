@@ -161,17 +161,14 @@ _posix_normalize_slash(PyUnicodeObject *read)
 }
 
 PyObject *
-posix_normalize_slash(PyObject *module, PyObject *read)
+posix_normalize_slash(PyObject *module, PyObject *arg)
 {
-    if (!PyUnicode_Check(read))
+    PyUnicodeObject *inner = _fspath(arg);
+    if (!inner)
     {
-        PyObject *cls = PyObject_Type(read);
-        PyObject *cls_name = PyType_GetName((PyTypeObject *)cls);
-        PyErr_Format(PyExc_TypeError, "expected str, not %U", cls_name);
         return NULL;
     }
-
-    return (PyObject *)_posix_normalize_slash((PyUnicodeObject *)read);
+    return (PyObject *)_posix_normalize_slash(inner);
 }
 
 // MARK: Dot
@@ -275,17 +272,14 @@ _posix_normalize_dot(PyUnicodeObject *read)
 }
 
 PyObject *
-posix_normalize_dot(PyObject *module, PyObject *read)
+posix_normalize_dot(PyObject *module, PyObject *arg)
 {
-    if (!PyUnicode_Check(read))
+    PyUnicodeObject *inner = _fspath(arg);
+    if (!inner)
     {
-        PyObject *cls = PyObject_Type(read);
-        PyObject *cls_name = PyType_GetName((PyTypeObject *)cls);
-        PyErr_Format(PyExc_TypeError, "expected str, not %U", cls_name);
         return NULL;
     }
-
-    return (PyObject *)_posix_normalize_dot((PyUnicodeObject *)read);
+    return (PyObject *)_posix_normalize_dot(inner);
 }
 
 // MARK: Posix
@@ -324,15 +318,12 @@ _posix_normalize(PyUnicodeObject *read)
 }
 
 PyObject *
-posix_normalize(PyObject *module, PyObject *read)
+posix_normalize(PyObject *module, PyObject *arg)
 {
-    if (!PyUnicode_Check(read))
+    PyUnicodeObject *inner = _fspath(arg);
+    if (!inner)
     {
-        PyObject *cls = PyObject_Type(read);
-        PyObject *cls_name = PyType_GetName((PyTypeObject *)cls);
-        PyErr_Format(PyExc_TypeError, "expected str, not %U", cls_name);
         return NULL;
     }
-
-    return (PyObject *)_posix_normalize((PyUnicodeObject *)read);
+    return (PyObject *)_posix_normalize(inner);
 }

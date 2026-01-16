@@ -116,16 +116,17 @@ PyObject *
 PyPosixFath_joinpath(PyPosixFathObject *self, PyObject *args)
 {
     Py_ssize_t count = PyTuple_GET_SIZE(args);
-    if (_PyTuple_Resize(&args, count + 1) != 0)
+    PyObject *concat = PyTuple_New(count + 1);
+    if (!concat)
     {
         return NULL;
     }
 
+    PyTuple_SET_ITEM(concat, 0, ((PyPosixFathObject *)self)->inner);
     for (Py_ssize_t i = 0; i < count; ++i)
     {
-        PyTuple_SET_ITEM(args, i + 1, PyTuple_GET_ITEM(args, i));
+        PyTuple_SET_ITEM(concat, i + 1, PyTuple_GET_ITEM(args, i));
     }
-    PyTuple_SET_ITEM(args, 0, ((PyPosixFathObject *)self)->inner);
 
     PyObject *cls = PyObject_Type((PyObject *)self);
     if (!cls)
@@ -133,12 +134,14 @@ PyPosixFath_joinpath(PyPosixFathObject *self, PyObject *args)
         return NULL;
     }
 
-    PyObject *joined = PyObject_Call(cls, args, NULL);
+    PyObject *joined = PyObject_Call(cls, concat, NULL);
+    Py_DECREF(cls);
     if (!joined)
     {
         return NULL;
     }
 
+    Py_DECREF(concat);
     return joined;
 }
 
