@@ -14,7 +14,7 @@ typedef PyFathObject PyWindowsFathObject;
 
 extern PyTypeObject PyWindowsFath_Type;
 
-#define PyWindowsFath_CheckExact(ob) Py_IS_TYPE((ob), &PyWindowsFath_Type)
-#define PyWindowsFath_Check(ob) PyWindowsFath_CheckExact(ob) || PyType_IsSubtype(Py_TYPE(ob), &PyWindowsFath_Type)
+#define PyWindowsFath_CheckExact(ob) (Py_IS_TYPE((ob), &PyWindowsFath_Type))
+#define PyWindowsFath_Check(ob) (PyWindowsFath_CheckExact(ob) || PyType_IsSubtype(Py_TYPE(ob), &PyWindowsFath_Type))
 
 #endif

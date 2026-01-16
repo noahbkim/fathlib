@@ -235,21 +235,6 @@ normalize_slash(PyObject *module, PyObject *read)
         return NULL;
     }
 
-    Py_ssize_t length = PyUnicode_GET_LENGTH(read);
-
-    // Replace an empty string with a ".".
-    if (length == 0)
-    {
-        Py_DECREF(read);
-        return PyUnicode_FromString(".");
-    }
-
-    // There is no invalid, one-character path.
-    if (length == 1)
-    {
-        return read;
-    }
-
     return (PyObject *)_normalize_slash((PyUnicodeObject *)read);
 }
 
@@ -343,6 +328,13 @@ _normalize_dot(PyUnicodeObject *read)
         read_index += 1;
     }
 
+    // This can probably be fit into the FSA, but we need to ensure at least
+    // one leading dot is included. This case gets hit for e.g. "./.".
+    if (write_index == 0 && read_index > 0)
+    {
+        write_index = 1;
+    }
+
     return cow_consume(read, read_size, read_kind, read_data, write, write_index);
 }
 
@@ -357,21 +349,6 @@ normalize_dot(PyObject *module, PyObject *read)
         return NULL;
     }
 
-    Py_ssize_t length = PyUnicode_GET_LENGTH(read);
-
-    // Replace an empty string with a ".".
-    if (length == 0)
-    {
-        Py_DECREF(read);
-        return PyUnicode_FromString(".");
-    }
-
-    // There is no invalid, one-character path.
-    if (length == 1)
-    {
-        return read;
-    }
-
     return (PyObject *)_normalize_dot((PyUnicodeObject *)read);
 }
 
@@ -380,6 +357,21 @@ normalize_dot(PyObject *module, PyObject *read)
 PyUnicodeObject *
 _normalize_posix(PyUnicodeObject *read)
 {
+    Py_ssize_t length = PyUnicode_GET_LENGTH(read);
+
+    // Replace an empty string with a ".".
+    if (length == 0)
+    {
+        Py_DECREF(read);
+        return (PyUnicodeObject *)PyUnicode_FromStringAndSize(".", 1);
+    }
+
+    // There is no invalid, one-character path.
+    if (length == 1)
+    {
+        return read;
+    }
+
     read = _normalize_slash(read);
     if (!read)
     {
@@ -404,21 +396,6 @@ normalize_posix(PyObject *module, PyObject *read)
         PyObject *cls_name = PyType_GetName((PyTypeObject *)cls);
         PyErr_Format(PyExc_TypeError, "expected str, not %U", cls_name);
         return NULL;
-    }
-
-    Py_ssize_t length = PyUnicode_GET_LENGTH(read);
-
-    // Replace an empty string with a ".".
-    if (length == 0)
-    {
-        Py_DECREF(read);
-        return PyUnicode_FromString(".");
-    }
-
-    // There is no invalid, one-character path.
-    if (length == 1)
-    {
-        return read;
     }
 
     return (PyObject *)_normalize_posix((PyUnicodeObject *)read);

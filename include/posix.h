@@ -14,7 +14,7 @@ typedef PyFathObject PyPosixFathObject;
 
 extern PyTypeObject PyPosixFath_Type;
 
-#define PyPosixFath_CheckExact(ob) Py_IS_TYPE((ob), &PyPosixFath_Type)
-#define PyPosixFath_Check(ob) PyPosixFath_CheckExact(ob) || PyType_IsSubtype(Py_TYPE(ob), &PyPosixFath_Type)
+#define PyPosixFath_CheckExact(ob) (Py_IS_TYPE((ob), &PyPosixFath_Type))
+#define PyPosixFath_Check(ob) (PyPosixFath_CheckExact(ob) || PyType_IsSubtype(Py_TYPE(ob), &PyPosixFath_Type))
 
 #endif

@@ -7,11 +7,13 @@ class TestPurePosixPath(unittest.TestCase):
     def test___init__(self) -> None:
         for args, expected in (
             (("",), "."),
-            ((".",), "."),
             (("/",), "/"),
             (("//",), "//"),
             (("///",), "/"),
             (("////",), "/"),
+            (("a",), "a"),
+            (("a/",), "a"),
+            (("a//",), "a"),
             (("/a",), "/a"),
             (("/a/",), "/a"),
             (("/a//",), "/a"),
@@ -24,6 +26,12 @@ class TestPurePosixPath(unittest.TestCase):
             (("////a",), "/a"),
             (("////a/",), "/a"),
             (("////a//",), "/a"),
+            (("a/b",), "a/b"),
+            (("a//b",), "a/b"),
+            (("a/b/",), "a/b"),
+            (("a//b/",), "a/b"),
+            (("a/b//",), "a/b"),
+            (("a//b//",), "a/b"),
             (("/a/b",), "/a/b"),
             (("/a//b",), "/a/b"),
             (("/a/b/",), "/a/b"),
@@ -42,6 +50,8 @@ class TestPurePosixPath(unittest.TestCase):
             (("///a//b/",), "/a/b"),
             (("///a/b//",), "/a/b"),
             (("///a//b//",), "/a/b"),
+            ((".",), "."),
+            (("./",), "."),
             (("/.",), "/"),
             (("/./",), "/"),
             (("/.//",), "/"),
@@ -54,6 +64,12 @@ class TestPurePosixPath(unittest.TestCase):
             (("////.",), "/"),
             (("////./",), "/"),
             (("////.//",), "/"),
+            (("./b",), "b"),
+            ((".//b",), "b"),
+            (("./b/",), "b"),
+            ((".//b/",), "b"),
+            (("./b//",), "b"),
+            ((".//b//",), "b"),
             (("/./b",), "/b"),
             (("/.//b",), "/b"),
             (("/./b/",), "/b"),
@@ -72,6 +88,12 @@ class TestPurePosixPath(unittest.TestCase):
             (("///.//b/",), "/b"),
             (("///./b//",), "/b"),
             (("///.//b//",), "/b"),
+            (("./.",), "."),
+            ((".//.",), "."),
+            (("././",), "."),
+            ((".//./",), "."),
+            (("././/",), "."),
+            ((".//.//",), "."),
             (("/./.",), "/"),
             (("/.//.",), "/"),
             (("/././",), "/"),
@@ -92,8 +114,13 @@ class TestPurePosixPath(unittest.TestCase):
             (("///.//.//",), "/"),
         ):
             with self.subTest(f"{args} => {expected}"):
-                self.assertEqual(fathlib.PurePosixPath(*args), fathlib.PurePosixPath(expected))
-                self.assertEqual(str(fathlib.PurePosixPath(*args)), str(fathlib.PurePosixPath(expected)))
+                self.assertEqual(
+                    fathlib.PurePosixPath(*args), fathlib.PurePosixPath(expected)
+                )
+                self.assertEqual(
+                    str(fathlib.PurePosixPath(*args)),
+                    str(fathlib.PurePosixPath(expected)),
+                )
 
 
 if __name__ == "__main__":

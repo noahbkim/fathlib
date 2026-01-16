@@ -14,14 +14,11 @@ _fspath(PyObject *item)
     if (!PyUnicode_Check(fspath))
     {
         PyErr_Format(PyExc_TypeError, "fathlib does not support %T paths", fspath);
-        goto error;
+        Py_DECREF(fspath);
+        return NULL;
     }
 
     return (PyUnicodeObject *)fspath;
-
-error:
-    Py_DECREF(fspath);
-    return NULL;
 }
 
 // MARK: POSIX
