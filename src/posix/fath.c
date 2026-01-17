@@ -106,7 +106,8 @@ PyPosixFath_richcompare(PyPosixFathObject *self, PyObject *other, int op)
 PyObject *
 PyPosixFath_as_posix(PyPosixFathObject *self)
 {
-    return Py_NewRef(self->inner);
+    Py_INCREF(self->inner);
+    return (PyObject *)self->inner;
 }
 
 PyObject *
@@ -156,39 +157,27 @@ PyPosixFath_root(PyPosixFathObject *self)
     Py_ssize_t length = PyUnicode_GET_LENGTH(self->inner);
     int kind = PyUnicode_KIND(self->inner);
     void *data = PyUnicode_DATA(self->inner);
-
-    if (length == 0)
+    if (length >= 1 && PyUnicode_READ(kind, data, 0) == '/')
     {
-        return PyUnicode_FromString("");
-    }
-    else if (length == 1)
-    {
-        if (PyUnicode_READ(kind, data, 0) == '/')
+        if (length >= 2 && PyUnicode_READ(kind, data, 1) == '/')
         {
-            return PyUnicode_FromString("/");
+            if (length >= 3 && PyUnicode_READ(kind, data, 2) == '/')
+            {
+                return PyUnicode_FromString("/");
+            }
+            else
+            {
+                return PyUnicode_FromString("//");
+            }
         }
         else
         {
-            return PyUnicode_FromString("");
+            return PyUnicode_FromString("/");
         }
     }
     else
     {
-        if (PyUnicode_READ(kind, data, 0) == '/')
-        {
-            if (PyUnicode_READ(kind, data, 1) == '/')
-            {
-                return PyUnicode_FromString("//");
-            }
-            else
-            {
-                return PyUnicode_FromString("/");
-            }
-        }
-        else
-        {
-            return PyUnicode_FromString("");
-        }
+        return PyUnicode_FromString("");
     }
 }
 

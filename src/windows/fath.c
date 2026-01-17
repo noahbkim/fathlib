@@ -1,7 +1,10 @@
 #define PY_SSIZE_T_CLEAN
 #include "Python.h"
 
+#include "common.h"
 #include "windows/fath.h"
+#include "windows/join.h"
+#include "windows/normalize.h"
 
 // MARK: Intrinsic
 
@@ -18,7 +21,7 @@ PyWindowsFath_init(PyFathObject *self, PyObject *args, PyObject *kwargs)
     Py_ssize_t nargs = PyTuple_GET_SIZE(args);
     if (nargs == 0)
     {
-        self->inner = (PyUnicodeObject *)PyUnicode_New(0, 0);
+        self->inner = (PyUnicodeObject *)PyUnicode_FromString(".");
         return 0;
     }
 
@@ -26,70 +29,41 @@ PyWindowsFath_init(PyFathObject *self, PyObject *args, PyObject *kwargs)
     else if (nargs == 1)
     {
         PyObject *arg = PyTuple_GET_ITEM(args, 0);
-        PyObject *fspath = PyOS_FSPath(arg);
-        if (!fspath)
+
+        PyUnicodeObject *path = _fspath(arg);
+        if (!path)
         {
-            goto error;
-        }
-        if (PyBytes_CheckExact(fspath))
-        {
-            PyErr_Format(PyExc_TypeError, "fathlib.Fath does not support bytes faths");
-            Py_DECREF(fspath);
-            goto error;
-        }
-        if (!PyUnicode_CheckExact(fspath))
-        {
-            PyErr_Format(PyExc_TypeError, "fathlib.Fath cannot be constructed from %T", fspath);
-            Py_DECREF(fspath);
-            goto error;
+            return -1;
         }
 
-        self->inner = (PyUnicodeObject *)fspath;
+        PyUnicodeObject *normalized = _windows_normalize(path);
+        if (!normalized)
+        {
+            return -1;
+        }
+
+        self->inner = normalized;
         return 0;
     }
 
     // Join the `__fspath__` of multiple arguments.
-    if (nargs > 1)
+    else
     {
-        assert(Py_REFCNT(args) == 1);
-        for (Py_ssize_t i = 0; i < nargs; ++i)
+        PyUnicodeObject *joined = _windows_join(args, nargs);
+        if (!joined)
         {
-            PyObject *fspath = PyOS_FSPath(PyTuple_GET_ITEM(args, i));
-            if (!fspath)
-            {
-                goto error;
-            }
-            if (PyBytes_CheckExact(fspath))
-            {
-                PyErr_Format(PyExc_TypeError, "fathlib.WindowsFath does not support bytes faths");
-                Py_DECREF(fspath);
-                goto error;
-            }
-            if (!PyUnicode_CheckExact(fspath))
-            {
-                PyErr_Format(PyExc_TypeError, "fathlib.WindowsFath cannot be constructed from %T", fspath);
-                Py_DECREF(fspath);
-                goto error;
-            }
-            Py_DECREF(PyTuple_GET_ITEM(args, i));
-            PyTuple_SET_ITEM(args, i, fspath);
+            return -1;
         }
 
-        PyObject *slash = PyUnicode_FromString("\\");
-        if (!slash)
+        PyUnicodeObject *normalized = _windows_normalize(joined);
+        if (!normalized)
         {
-            goto error;
+            return -1;
         }
 
-        PyObject *inner = PyUnicode_Join(slash, args);
-        self->inner = (PyUnicodeObject *)inner;
+        self->inner = normalized;
         return 0;
     }
-
-error:
-    Py_XDECREF(args);
-    Py_XDECREF(kwargs);
-    return -1;
 }
 
 PyObject *
@@ -129,18 +103,91 @@ PyWindowsFath_richcompare(PyWindowsFathObject *self, PyObject *other, int op)
 
 // MARK: Methods
 
-Py_UCS4
-PyWindowsFath_last(PyWindowsFathObject *self)
+PyObject *
+PyWindowsFath_as_posix(PyWindowsFathObject *self)
+{
+    Py_ssize_t length = PyUnicode_GET_LENGTH(self->inner);
+    unsigned int kind = PyUnicode_KIND(self->inner);
+    void *data = PyUnicode_DATA(self->inner);
+    PyObject *posix = PyUnicode_FromKindAndData(kind, data, length);
+
+    data = PyUnicode_DATA(posix);
+    for (Py_ssize_t i = 0; i < length; ++i)
+    {
+        if (PyUnicode_READ(kind, data, i) == '\\')
+        {
+            PyUnicode_WRITE(kind, data, i, '/');
+        }
+    }
+
+    return posix;
+}
+
+PyObject *
+PyWindowsFath_joinpath(PyWindowsFathObject *self, PyObject *args)
+{
+    Py_ssize_t count = PyTuple_GET_SIZE(args);
+    PyObject *concat = PyTuple_New(count + 1);
+    if (!concat)
+    {
+        return NULL;
+    }
+
+    PyTuple_SET_ITEM(concat, 0, ((PyWindowsFathObject *)self)->inner);
+    for (Py_ssize_t i = 0; i < count; ++i)
+    {
+        PyTuple_SET_ITEM(concat, i + 1, PyTuple_GET_ITEM(args, i));
+    }
+
+    PyObject *cls = PyObject_Type((PyObject *)self);
+    if (!cls)
+    {
+        return NULL;
+    }
+
+    PyObject *joined = PyObject_Call(cls, concat, NULL);
+    Py_DECREF(cls);
+    if (!joined)
+    {
+        return NULL;
+    }
+
+    Py_DECREF(concat);
+    return joined;
+}
+
+// MARK: Properties
+
+PyObject *
+PyWindowsFath_drive(PyWindowsFathObject *self)
+{
+    return PyUnicode_FromString("");
+}
+
+PyObject *
+PyWindowsFath_root(PyWindowsFathObject *self)
 {
     Py_ssize_t length = PyUnicode_GET_LENGTH(self->inner);
     int kind = PyUnicode_KIND(self->inner);
     void *data = PyUnicode_DATA(self->inner);
-    return PyUnicode_READ(kind, data, length - 1);
+    if (length > 0 && PyUnicode_READ(kind, data, 0) == '\\')
+    {
+        return PyUnicode_FromString("\\");
+    }
+    else if (length >= 3 && PyUnicode_READ(kind, data, 1) == ':' && PyUnicode_READ(kind, data, 2) == '\\')
+    {
+        return PyUnicode_FromString("\\");
+    }
+    else
+    {
+        return PyUnicode_FromString("");
+    }
 }
 
 PyObject *
 PyWindowsFath_name(PyWindowsFathObject *self)
 {
+    // TODO: UNC
     Py_ssize_t length = PyUnicode_GET_LENGTH(self->inner);
     int kind = PyUnicode_KIND(self->inner);
     void *data = PyUnicode_DATA(self->inner);
@@ -209,87 +256,38 @@ PyWindowsFath_parent(PyWindowsFathObject *self)
     }
 }
 
-PyObject *
-PyWindowsFath_as_posix(PyWindowsFathObject *self)
-{
-    PyObject *find = NULL;
-    PyObject *replace = NULL;
-    PyObject *result = NULL;
-
-    find = PyUnicode_FromString("/");
-    if (!find)
-    {
-        goto error;
-    }
-
-    replace = PyUnicode_FromString("\\");
-    if (!replace)
-    {
-        goto error;
-    }
-
-    result = PyUnicode_Replace((PyObject *)self->inner, find, replace, -1);
-    if (!result)
-    {
-        goto error;
-    }
-
-    goto done;
-
-error:
-    Py_XDECREF(find);
-    Py_XDECREF(replace);
-
-done:
-    return result;
-}
+// MARK: Operators
 
 PyObject *
-PyWindowsFath_joinpath(PyObject *head, PyObject *tail)
+PyWindowsFath_true_divide(PyObject *self, PyObject *arg)
 {
-    if (!PyWindowsFath_Check(head))
+    if (!PyWindowsFath_Check(self))
     {
         Py_RETURN_NOTIMPLEMENTED;
     }
 
-    PyWindowsFathObject *self = (PyWindowsFathObject *)head;
-    PyObject *tail_inner;
-    PyObject *joined_inner = NULL;
-    PyObject *joined = NULL;
-
-    tail_inner = PyOS_FSPath(tail);
-    if (!tail_inner)
+    PyUnicodeObject *fspath = _fspath(arg);
+    if (!fspath)
     {
         return NULL;
     }
 
-    const char *format = PyWindowsFath_last(self) == '\\' ? "%U%U" : "%U\\%U";
-    joined_inner = PyUnicode_FromFormat(format, self->inner, tail_inner);
-    if (!joined_inner)
+    PyObject *inner = PyUnicode_FromFormat("%U\\%U", ((PyWindowsFathObject *)self)->inner, fspath);
+    Py_DECREF(fspath);
+    if (!inner)
     {
-        goto error;
+        return NULL;
     }
 
     PyObject *cls = PyObject_Type((PyObject *)self);
     if (!cls)
     {
+        Py_DECREF(inner);
         return NULL;
     }
 
-    joined = PyObject_CallOneArg(cls, joined_inner);
-    if (!joined)
-    {
-        goto error;
-    }
-
-    goto done;
-
-error:
-    Py_XDECREF(joined_inner);
-    Py_XDECREF(joined);
-
-done:
-    Py_XDECREF(tail_inner);
+    PyObject *joined = PyObject_CallOneArg(cls, inner);
+    Py_DECREF(cls);
     return joined;
 }
 
@@ -298,19 +296,22 @@ done:
 static PyMethodDef PyWindowsFath_methods[] = {
     {"as_posix",     (PyCFunction)PyWindowsFath_as_posix, METH_NOARGS, PyDoc_STR("Normalize the path with posix slashes")},
     {"joinpath",     (PyCFunction)PyWindowsFath_joinpath, METH_O,      PyDoc_STR("Append another path")                  },
+    {"__fspath__",   (PyCFunction)PyFath_str,             METH_NOARGS, PyDoc_STR("Get the underlying string")            },
     {"__getstate__", (PyCFunction)PyFath_getstate,        METH_NOARGS, PyDoc_STR("Serialize this fath for pickling")     },
     {"__setstate__", (PyCFunction)PyFath_setstate,        METH_O,      PyDoc_STR("Deserialize this fath for pickling")   },
     {NULL,           NULL,                                0,           NULL                                              },
 };
 
 static PyGetSetDef PyWindowsFath_getset[] = {
+    {"drive",  (getter)PyWindowsFath_drive,  NULL, PyDoc_STR("Get the drive of the fath"),     NULL},
+    {"root",   (getter)PyWindowsFath_root,   NULL, PyDoc_STR("Get the root of the fath"),      NULL},
     {"name",   (getter)PyWindowsFath_name,   NULL, PyDoc_STR("Get the base name of the fath"), NULL},
     {"parent", (getter)PyWindowsFath_parent, NULL, PyDoc_STR("Get the parent fath"),           NULL},
     {NULL,     NULL,                         NULL, NULL,                                       NULL},
 };
 
 static PyNumberMethods PyWindowsFath_as_number = {
-    .nb_true_divide = (PyCFunction)PyWindowsFath_joinpath,
+    .nb_true_divide = (PyCFunction)PyWindowsFath_true_divide,
 };
 
 PyTypeObject PyWindowsFath_Type = {
