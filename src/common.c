@@ -19,8 +19,22 @@ _fspath(PyObject *item)
 
     if (!PyUnicode_Check(fspath))
     {
-        PyErr_Format(PyExc_TypeError, "fathlib does not support %T paths", fspath);
+        PyObject *cls = PyObject_Type(fspath);
         Py_DECREF(fspath);
+        if (!cls)
+        {
+            return NULL;
+        }
+        PyObject *cls_name = PyType_GetName((PyTypeObject *)cls);
+        Py_DECREF(cls);
+        if (!cls_name)
+        {
+            return NULL;
+        }
+        PyErr_Format(PyExc_TypeError,
+                     "argument should be a str or an os.PathLike object where __fspath__ returns a str, not %R",
+                     cls_name);
+        Py_DECREF(cls_name);
         return NULL;
     }
 
@@ -65,7 +79,7 @@ _cow_consume(PyUnicodeObject *read,
              unsigned int read_kind,
              void *read_data,
              PyUnicodeObject *write,
-             Py_ssize_t write_index)
+             Py_ssize_t write_size)
 {
     if (write)
     {
@@ -73,16 +87,16 @@ _cow_consume(PyUnicodeObject *read,
         {
             Py_INCREF(read);
         }
-        if (write_index != read_size && PyUnicode_Resize((PyObject **)&write, write_index) != 0)
+        if (write_size != read_size && PyUnicode_Resize((PyObject **)&write, write_size) != 0)
         {
             Py_DECREF(write);
             return NULL;
         }
         return write;
     }
-    else if (write_index != read_size)
+    else if (write_size != read_size)
     {
-        PyObject *truncated = PyUnicode_FromKindAndData(read_kind, read_data, write_index);
+        PyObject *truncated = PyUnicode_FromKindAndData(read_kind, read_data, write_size);
         return (PyUnicodeObject *)truncated;
     }
     else
