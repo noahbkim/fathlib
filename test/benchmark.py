@@ -1,4 +1,5 @@
 import pathlib
+import pickle
 import timeit
 from collections.abc import Callable
 
@@ -77,5 +78,27 @@ def compare_name():
     compare(
         "path.name",
         "fath.name",
+        globals=globals() | locals(),
+    )
+
+
+@main
+def compare_pickle():
+    path = pathlib.Path("/the/quick/brown/fox")
+    fath = fathlib.Path("/the/quick/brown/fox")
+    compare(
+        "pickle.dumps(path)",
+        "pickle.dumps(fath)",
+        globals=globals() | locals(),
+    )
+
+
+@main
+def compare_unpickle():
+    path_data = pickle.dumps(pathlib.Path("/the/quick/brown/fox"))
+    fath_data = pickle.dumps(fathlib.Path("/the/quick/brown/fox"))
+    compare(
+        "pickle.loads(path_data)",
+        "pickle.loads(fath_data)",
         globals=globals() | locals(),
     )

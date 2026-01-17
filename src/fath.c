@@ -41,8 +41,9 @@ PyFath_getstate(PyFathObject *self)
 PyObject *
 PyFath_setstate(PyFathObject *self, PyObject *state)
 {
-    if (PyUnicode_Check(state))
+    if (PyUnicode_CheckExact(state))
     {
+        Py_INCREF(state);
         self->inner = (PyUnicodeObject *)state;
         Py_RETURN_NONE;
     }
