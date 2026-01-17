@@ -12,6 +12,7 @@ int _cow_copy(PyUnicodeObject *read,
               void *read_data,
               PyUnicodeObject **write,
               void **write_data);
+
 PyUnicodeObject *_cow_consume(PyUnicodeObject *read,
                               Py_ssize_t read_size,
                               unsigned int read_kind,

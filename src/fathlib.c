@@ -5,17 +5,19 @@
 #include "posix/join.h"
 #include "posix/normalize.h"
 #include "windows/fath.h"
+#include "windows/join.h"
 #include "windows/normalize.h"
 
 static PyMethodDef PyFathlibModule_methods[] = {
-    {"posix_normalize_slash",   (PyCFunction)posix_normalize_slash,   METH_O,       PyDoc_STR("Normalize slashes")       },
-    {"posix_normalize_dot",     (PyCFunction)posix_normalize_dot,     METH_O,       PyDoc_STR("Normalize dot components")},
-    {"posix_normalize",         (PyCFunction)posix_normalize,         METH_O,       PyDoc_STR("Normalize a POSIX path")  },
-    {"posix_join",              (PyCFunction)posix_join,              METH_VARARGS, PyDoc_STR("Normalize a POSIX path")  },
-    {"windows_normalize_slash", (PyCFunction)windows_normalize_slash, METH_O,       PyDoc_STR("Normalize slashes")       },
-    {"windows_normalize_dot",   (PyCFunction)windows_normalize_dot,   METH_O,       PyDoc_STR("Normalize dot components")},
-    {"windows_normalize",       (PyCFunction)windows_normalize,       METH_O,       PyDoc_STR("Normalize a Windows path")},
-    {NULL,                      NULL,                                 0,            NULL                                 }
+    {"posix_normalize_slash",   (PyCFunction)posix_normalize_slash,   METH_O,       PyDoc_STR("Normalize slashes")             },
+    {"posix_normalize_dot",     (PyCFunction)posix_normalize_dot,     METH_O,       PyDoc_STR("Normalize dot components")      },
+    {"posix_normalize",         (PyCFunction)posix_normalize,         METH_O,       PyDoc_STR("Normalize a POSIX path")        },
+    {"posix_join",              (PyCFunction)posix_join,              METH_VARARGS, PyDoc_STR("Join parts into a POSIX path")  },
+    {"windows_normalize_slash", (PyCFunction)windows_normalize_slash, METH_O,       PyDoc_STR("Normalize slashes")             },
+    {"windows_normalize_dot",   (PyCFunction)windows_normalize_dot,   METH_O,       PyDoc_STR("Normalize dot components")      },
+    {"windows_normalize",       (PyCFunction)windows_normalize,       METH_O,       PyDoc_STR("Normalize a Windows path")      },
+    {"windows_join",            (PyCFunction)windows_join,            METH_VARARGS, PyDoc_STR("Join parts into a Windows path")},
+    {NULL,                      NULL,                                 0,            NULL                                       }
 };
 
 static struct PyModuleDef PyFathlibModule = {

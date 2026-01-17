@@ -33,13 +33,13 @@ PyPosixFath_init(PyFathObject *self, PyObject *args, PyObject *kwargs)
         PyUnicodeObject *path = _fspath(arg);
         if (!path)
         {
-            goto error;
+            return -1;
         }
 
         PyUnicodeObject *normalized = _posix_normalize(path);
         if (!normalized)
         {
-            goto error;
+            return -1;
         }
 
         self->inner = normalized;
@@ -47,26 +47,23 @@ PyPosixFath_init(PyFathObject *self, PyObject *args, PyObject *kwargs)
     }
 
     // Join the `__fspath__` of multiple arguments.
-    if (nargs > 1)
+    else
     {
         PyUnicodeObject *joined = _posix_join(args, nargs);
         if (!joined)
         {
-            goto error;
+            return -1;
         }
 
         PyUnicodeObject *normalized = _posix_normalize(joined);
         if (!normalized)
         {
-            goto error;
+            return -1;
         }
 
         self->inner = normalized;
         return 0;
     }
-
-error:
-    return -1;
 }
 
 PyObject *
