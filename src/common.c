@@ -5,6 +5,12 @@
 PyUnicodeObject *
 _fspath(PyObject *item)
 {
+    if (PyUnicode_CheckExact(item))
+    {
+        Py_INCREF(item);
+        return (PyUnicodeObject *)item;
+    }
+
     PyObject *fspath = PyOS_FSPath(item);
     if (!fspath)
     {
