@@ -15,8 +15,8 @@ typedef enum
 PyUnicodeObject *
 _windows_normalize_slash(PyUnicodeObject *read)
 {
-    unsigned int read_kind = PyUnicode_KIND(read);
     Py_ssize_t read_size = PyUnicode_GET_LENGTH(read);
+    unsigned int read_kind = PyUnicode_KIND(read);
     void *read_data = PyUnicode_DATA(read);
 
     PyUnicodeObject *write = NULL;
@@ -178,8 +178,8 @@ typedef enum
 PyUnicodeObject *
 _windows_normalize_dot(PyUnicodeObject *read)
 {
-    unsigned int read_kind = PyUnicode_KIND(read);
     Py_ssize_t read_size = PyUnicode_GET_LENGTH(read);
+    unsigned int read_kind = PyUnicode_KIND(read);
     void *read_data = PyUnicode_DATA(read);
 
     PyUnicodeObject *write = NULL;

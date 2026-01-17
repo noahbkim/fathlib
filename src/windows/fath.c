@@ -5,6 +5,7 @@
 #include "windows/fath.h"
 #include "windows/join.h"
 #include "windows/normalize.h"
+#include "windows/view.h"
 
 // MARK: Intrinsic
 
@@ -161,7 +162,7 @@ PyWindowsFath_joinpath(PyWindowsFathObject *self, PyObject *args)
 PyObject *
 PyWindowsFath_drive(PyWindowsFathObject *self)
 {
-    return PyUnicode_FromString("");
+    return (PyObject *)_windows_drive(self->inner);
 }
 
 PyObject *
