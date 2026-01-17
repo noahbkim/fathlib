@@ -19,6 +19,7 @@ typedef struct
 PyFathObject *PyFath_new(PyTypeObject *type, PyObject *args, PyObject *kwargs);
 int PyFath_init(PyFathObject *self, PyObject *args, PyObject *kwargs);
 PyObject *PyFath_str(PyFathObject *self);
+PyObject *PyFath_repr(PyFathObject *self);
 PyObject *PyFath_getstate(PyFathObject *self);
 PyObject *PyFath_setstate(PyFathObject *self, PyObject *state);
 void PyFath_dealloc(PyFathObject *self);

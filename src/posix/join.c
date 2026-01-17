@@ -6,6 +6,8 @@
 PyUnicodeObject *
 _posix_join(PyObject *items, int count)
 {
+    PyObject *joined = NULL;
+
     PyObject *slash = PyUnicode_FromString("/");
     if (!slash)
     {
@@ -23,13 +25,7 @@ _posix_join(PyObject *items, int count)
         PyTuple_SET_ITEM(items, i, path);
     }
 
-    PyObject *inner = PyUnicode_Join(slash, items);
-    if (!inner)
-    {
-        goto error;
-    }
-
-    return (PyUnicodeObject *)inner;
+    joined = PyUnicode_Join(slash, items);
 
 error:
     Py_DECREF(slash);
@@ -38,7 +34,7 @@ error:
         Py_DECREF(PyTuple_GET_ITEM(items, j));
     }
 
-    return NULL;
+    return (PyUnicodeObject *)joined;
 }
 
 PyObject *

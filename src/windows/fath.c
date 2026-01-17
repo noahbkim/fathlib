@@ -67,19 +67,6 @@ PyWindowsFath_init(PyFathObject *self, PyObject *args, PyObject *kwargs)
     }
 }
 
-PyObject *
-PyWindowsFath_repr(PyWindowsFathObject *self)
-{
-    PyObject *inner = PyUnicode_Type.tp_repr((PyObject *)self->inner);
-    PyObject *cls = PyObject_Type((PyObject *)self);
-    PyObject *cls_name = PyType_GetName((PyTypeObject *)cls);
-    PyObject *repr = PyUnicode_FromFormat("%U(%U)", cls_name, inner);
-    Py_DECREF(inner);
-    Py_DECREF(cls);
-    Py_DECREF(cls_name);
-    return repr;
-}
-
 Py_hash_t
 PyWindowsFath_hash(PyWindowsFathObject *self)
 {
@@ -98,7 +85,7 @@ PyWindowsFath_richcompare(PyWindowsFathObject *self, PyObject *other, int op)
     }
     else
     {
-        return Py_NotImplemented;
+        Py_RETURN_NOTIMPLEMENTED;
     }
 }
 
@@ -134,7 +121,7 @@ PyWindowsFath_joinpath(PyWindowsFathObject *self, PyObject *args)
         return NULL;
     }
 
-    PyTuple_SET_ITEM(concat, 0, ((PyWindowsFathObject *)self)->inner);
+    PyTuple_SET_ITEM(concat, 0, self->inner);
     for (Py_ssize_t i = 0; i < count; ++i)
     {
         PyTuple_SET_ITEM(concat, i + 1, PyTuple_GET_ITEM(args, i));
@@ -295,12 +282,12 @@ PyWindowsFath_true_divide(PyObject *self, PyObject *arg)
 // MARK: Declaration
 
 static PyMethodDef PyWindowsFath_methods[] = {
-    {"as_posix",     (PyCFunction)PyWindowsFath_as_posix, METH_NOARGS, PyDoc_STR("Normalize the path with posix slashes")},
-    {"joinpath",     (PyCFunction)PyWindowsFath_joinpath, METH_O,      PyDoc_STR("Append another path")                  },
-    {"__fspath__",   (PyCFunction)PyFath_str,             METH_NOARGS, PyDoc_STR("Get the underlying string")            },
-    {"__getstate__", (PyCFunction)PyFath_getstate,        METH_NOARGS, PyDoc_STR("Serialize this fath for pickling")     },
-    {"__setstate__", (PyCFunction)PyFath_setstate,        METH_O,      PyDoc_STR("Deserialize this fath for pickling")   },
-    {NULL,           NULL,                                0,           NULL                                              },
+    {"as_posix",     (PyCFunction)PyWindowsFath_as_posix, METH_NOARGS,  PyDoc_STR("Normalize the path with posix slashes")},
+    {"joinpath",     (PyCFunction)PyWindowsFath_joinpath, METH_VARARGS, PyDoc_STR("Append another path")                  },
+    {"__fspath__",   (PyCFunction)PyFath_str,             METH_NOARGS,  PyDoc_STR("Get the underlying string")            },
+    {"__getstate__", (PyCFunction)PyFath_getstate,        METH_NOARGS,  PyDoc_STR("Serialize this fath for pickling")     },
+    {"__setstate__", (PyCFunction)PyFath_setstate,        METH_O,       PyDoc_STR("Deserialize this fath for pickling")   },
+    {NULL,           NULL,                                0,            NULL                                              },
 };
 
 static PyGetSetDef PyWindowsFath_getset[] = {
@@ -328,7 +315,7 @@ PyTypeObject PyWindowsFath_Type = {
     .tp_init = (initproc)PyWindowsFath_init,
     .tp_hash = (hashfunc)PyWindowsFath_hash,
     .tp_richcompare = (richcmpfunc)PyWindowsFath_richcompare,
-    .tp_repr = (reprfunc)PyWindowsFath_repr,
+    .tp_repr = (reprfunc)PyFath_repr,
     .tp_str = (reprfunc)PyFath_str,
     .tp_dealloc = (destructor)PyFath_dealloc,
     .tp_as_number = &PyWindowsFath_as_number,

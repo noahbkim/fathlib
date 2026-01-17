@@ -32,6 +32,28 @@ PyFath_str(PyFathObject *self)
 }
 
 PyObject *
+PyFath_repr(PyFathObject *self)
+{
+    PyObject *cls = PyObject_Type((PyObject *)self);
+    if (!cls)
+    {
+        return NULL;
+    }
+
+    PyObject *cls_name = PyType_GetName((PyTypeObject *)cls);
+    Py_DECREF(cls);
+    if (!cls_name)
+    {
+        return NULL;
+    }
+
+    PyObject *repr = PyUnicode_FromFormat("%U(%R)", cls_name, self->inner);
+    Py_DECREF(cls_name);
+
+    return repr;
+}
+
+PyObject *
 PyFath_getstate(PyFathObject *self)
 {
     Py_INCREF(self->inner);

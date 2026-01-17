@@ -66,19 +66,6 @@ PyPosixFath_init(PyFathObject *self, PyObject *args, PyObject *kwargs)
     }
 }
 
-PyObject *
-PyPosixFath_repr(PyPosixFathObject *self)
-{
-    PyObject *inner = PyUnicode_Type.tp_repr((PyObject *)self->inner);
-    PyObject *cls = PyObject_Type((PyObject *)self);
-    PyObject *cls_name = PyType_GetName((PyTypeObject *)cls);
-    PyObject *repr = PyUnicode_FromFormat("%U(%U)", cls_name, inner);
-    Py_DECREF(inner);
-    Py_DECREF(cls);
-    Py_DECREF(cls_name);
-    return repr;
-}
-
 Py_hash_t
 PyPosixFath_hash(PyPosixFathObject *self)
 {
@@ -120,7 +107,7 @@ PyPosixFath_joinpath(PyPosixFathObject *self, PyObject *args)
         return NULL;
     }
 
-    PyTuple_SET_ITEM(concat, 0, ((PyPosixFathObject *)self)->inner);
+    PyTuple_SET_ITEM(concat, 0, self->inner);
     for (Py_ssize_t i = 0; i < count; ++i)
     {
         PyTuple_SET_ITEM(concat, i + 1, PyTuple_GET_ITEM(args, i));
@@ -323,7 +310,7 @@ PyTypeObject PyPosixFath_Type = {
     .tp_init = (initproc)PyPosixFath_init,
     .tp_hash = (hashfunc)PyPosixFath_hash,
     .tp_richcompare = (richcmpfunc)PyPosixFath_richcompare,
-    .tp_repr = (reprfunc)PyPosixFath_repr,
+    .tp_repr = (reprfunc)PyFath_repr,
     .tp_str = (reprfunc)PyFath_str,
     .tp_dealloc = (destructor)PyFath_dealloc,
     .tp_as_number = &PyPosixFath_as_number,

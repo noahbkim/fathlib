@@ -13,6 +13,7 @@ from .core import posix_join as posix_join
 from .core import windows_normalize_dot as windows_normalize_dot
 from .core import windows_normalize_slash as windows_normalize_slash
 from .core import windows_normalize as windows_normalize
+from .core import windows_join as windows_join
 from .core import windows_drive as windows_drive
 
 
