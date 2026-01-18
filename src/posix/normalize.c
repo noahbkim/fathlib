@@ -292,7 +292,6 @@ _posix_normalize(PyUnicodeObject *read)
     // Replace an empty string with a ".".
     if (length == 0)
     {
-        Py_DECREF(read);
         return (PyUnicodeObject *)PyUnicode_FromStringAndSize(".", 1);
     }
 

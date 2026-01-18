@@ -108,10 +108,13 @@ PyPosixFath_joinpath(PyPosixFathObject *self, PyObject *args)
         return NULL;
     }
 
+    Py_INCREF(self->inner);
     PyTuple_SET_ITEM(concat, 0, self->inner);
     for (Py_ssize_t i = 0; i < count; ++i)
     {
-        PyTuple_SET_ITEM(concat, i + 1, PyTuple_GET_ITEM(args, i));
+        PyObject *arg = PyTuple_GET_ITEM(args, i);
+        Py_INCREF(arg);
+        PyTuple_SET_ITEM(concat, i + 1, arg);
     }
 
     PyObject *cls = PyObject_Type((PyObject *)self);
@@ -122,12 +125,12 @@ PyPosixFath_joinpath(PyPosixFathObject *self, PyObject *args)
 
     PyObject *joined = PyObject_Call(cls, concat, NULL);
     Py_DECREF(cls);
+    Py_DECREF(concat);
     if (!joined)
     {
         return NULL;
     }
 
-    Py_DECREF(concat);
     return joined;
 }
 
@@ -213,6 +216,7 @@ PyPosixFath_true_divide(PyObject *self, PyObject *arg)
 
     PyObject *joined = PyObject_CallOneArg(cls, inner);
     Py_DECREF(cls);
+    Py_DECREF(inner);
     return joined;
 }
 

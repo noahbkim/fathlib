@@ -100,7 +100,7 @@ posix_name(PyObject *module, PyObject *arg)
         return NULL;
     }
     PyUnicodeObject *name = _posix_name(normalized);
-    Py_DECREF(arg);
+    Py_DECREF(normalized);
     return (PyObject *)name;
 }
 
