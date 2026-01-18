@@ -103,3 +103,50 @@ posix_name(PyObject *module, PyObject *arg)
     Py_DECREF(arg);
     return (PyObject *)name;
 }
+
+Py_ssize_t
+_posix_parent_index(PyUnicodeObject *arg)
+{
+    Py_ssize_t length = PyUnicode_GET_LENGTH(arg);
+    int kind = PyUnicode_KIND(arg);
+    void *data = PyUnicode_DATA(arg);
+
+    // Skip trailing slashes
+    Py_ssize_t i = length - 1;
+    while (i >= 0 && PyUnicode_READ(kind, data, i) == '/')
+    {
+        i -= 1;
+    }
+
+    // Read until the next slash or the start of the string.
+    while (i >= 0 && PyUnicode_READ(kind, data, i) != '/')
+    {
+        i -= 1;
+    }
+
+    return i;
+}
+
+PyObject *
+posix_parent(PyObject *module, PyObject *arg)
+{
+    PyUnicodeObject *fspath = _fspath(arg);
+    if (!fspath)
+    {
+        return NULL;
+    }
+    PyUnicodeObject *normalized = _posix_normalize(fspath);
+    if (!normalized)
+    {
+        return NULL;
+    }
+    Py_ssize_t parent_index = _posix_parent_index(normalized);
+    if (parent_index > 0)
+    {
+        return PyUnicode_Substring(arg, 0, parent_index);
+    }
+    else
+    {
+        Py_RETURN_NONE;
+    }
+}

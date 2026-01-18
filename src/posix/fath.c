@@ -154,33 +154,26 @@ PyPosixFath_name(PyPosixFathObject *self)
 PyObject *
 PyPosixFath_parent(PyPosixFathObject *self)
 {
-    Py_ssize_t length = PyUnicode_GET_LENGTH(self->inner);
-    int kind = PyUnicode_KIND(self->inner);
-    void *data = PyUnicode_DATA(self->inner);
-
-    // Skip trailing slashes
-    Py_ssize_t i = length - 1;
-    while (i >= 0 && PyUnicode_READ(kind, data, i) == '/')
+    Py_ssize_t parent_index = _posix_parent_index(self->inner);
+    if (parent_index > 0)
     {
-        i -= 1;
-    }
-
-    // Read until the next slash or the start of the string.
-    while (i >= 0 && PyUnicode_READ(kind, data, i) != '/')
-    {
-        i -= 1;
-    }
-
-    if (i > 0)
-    {
-        PyObject *parent_inner = PyUnicode_Substring((PyObject *)self->inner, 0, i);
-        PyObject *cls = PyObject_Type((PyObject *)self);
-        if (!cls)
+        PyObject *inner = PyUnicode_Substring((PyObject *)self->inner, 0, parent_index);
+        if (!inner)
         {
             return NULL;
         }
 
-        return PyObject_CallOneArg(cls, parent_inner);
+        PyObject *cls = PyObject_Type((PyObject *)self);
+        if (!cls)
+        {
+            Py_DECREF(inner);
+            return NULL;
+        }
+
+        PyObject *parent = PyObject_CallOneArg(cls, inner);
+        Py_DECREF(cls);
+        Py_DECREF(inner);
+        return parent;
     }
     else
     {

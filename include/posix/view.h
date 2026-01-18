@@ -10,4 +10,7 @@ PyObject *posix_root(PyObject *module, PyObject *arg);
 PyUnicodeObject *_posix_name(PyUnicodeObject *arg);
 PyObject *posix_name(PyObject *module, PyObject *arg);
 
+Py_ssize_t _posix_parent_index(PyUnicodeObject *arg);
+PyObject *posix_parent(PyObject *module, PyObject *arg);
+
 #endif
