@@ -5,6 +5,7 @@
 #include "posix/fath.h"
 #include "posix/join.h"
 #include "posix/normalize.h"
+#include "posix/view.h"
 
 // MARK: Intrinsic
 
@@ -141,65 +142,13 @@ PyPosixFath_drive(PyPosixFathObject *self)
 PyObject *
 PyPosixFath_root(PyPosixFathObject *self)
 {
-    Py_ssize_t length = PyUnicode_GET_LENGTH(self->inner);
-    int kind = PyUnicode_KIND(self->inner);
-    void *data = PyUnicode_DATA(self->inner);
-    if (length >= 1 && PyUnicode_READ(kind, data, 0) == '/')
-    {
-        if (length >= 2 && PyUnicode_READ(kind, data, 1) == '/')
-        {
-            if (length >= 3 && PyUnicode_READ(kind, data, 2) == '/')
-            {
-                return PyUnicode_FromString("/");
-            }
-            else
-            {
-                return PyUnicode_FromString("//");
-            }
-        }
-        else
-        {
-            return PyUnicode_FromString("/");
-        }
-    }
-    else
-    {
-        return PyUnicode_FromString("");
-    }
+    return (PyObject *)_posix_root(self->inner);
 }
 
 PyObject *
 PyPosixFath_name(PyPosixFathObject *self)
 {
-    Py_ssize_t length = PyUnicode_GET_LENGTH(self->inner);
-    int kind = PyUnicode_KIND(self->inner);
-    void *data = PyUnicode_DATA(self->inner);
-
-    // Skip trailing slashes
-    Py_ssize_t i = length - 1;
-    while (i >= 0 && PyUnicode_READ(kind, data, i) == '/')
-    {
-        i -= 1;
-    }
-
-    Py_ssize_t end = i + 1;
-
-    // Read until the next slash or the start of the string.
-    while (i >= 0 && PyUnicode_READ(kind, data, i) != '/')
-    {
-        i -= 1;
-    }
-
-    // Optimization: use the same string if the whole thing is the name.
-    if (i < 0 && end == length)
-    {
-        return Py_NewRef(self->inner);
-    }
-    else
-    {
-        Py_ssize_t start = i + 1;
-        return PyUnicode_Substring((PyObject *)self->inner, start, end);
-    }
+    return (PyObject *)_posix_name(self->inner);
 }
 
 PyObject *

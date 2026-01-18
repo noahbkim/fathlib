@@ -4,6 +4,7 @@
 #include "posix/fath.h"
 #include "posix/join.h"
 #include "posix/normalize.h"
+#include "posix/view.h"
 #include "windows/fath.h"
 #include "windows/join.h"
 #include "windows/normalize.h"
@@ -14,6 +15,8 @@ static PyMethodDef PyFathlibModule_methods[] = {
     {"posix_normalize_dot",     (PyCFunction)posix_normalize_dot,     METH_O,       PyDoc_STR("Normalize dot components")            },
     {"posix_normalize",         (PyCFunction)posix_normalize,         METH_O,       PyDoc_STR("Normalize a POSIX path")              },
     {"posix_join",              (PyCFunction)posix_join,              METH_VARARGS, PyDoc_STR("Join parts into a POSIX path")        },
+    {"posix_root",              (PyCFunction)posix_root,              METH_O,       PyDoc_STR("Get the root part of a path")         },
+    {"posix_name",              (PyCFunction)posix_name,              METH_O,       PyDoc_STR("Get the name part of a path")         },
     {"windows_normalize_slash", (PyCFunction)windows_normalize_slash, METH_O,       PyDoc_STR("Normalize slashes")                   },
     {"windows_normalize_dot",   (PyCFunction)windows_normalize_dot,   METH_O,       PyDoc_STR("Normalize dot components")            },
     {"windows_normalize",       (PyCFunction)windows_normalize,       METH_O,       PyDoc_STR("Normalize a Windows path")            },
