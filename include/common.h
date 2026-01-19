@@ -19,6 +19,7 @@ int _cow_copy(PyUnicodeObject *read,
               unsigned int read_kind,
               void *read_data,
               PyUnicodeObject **write,
+              Py_ssize_t write_size,
               void **write_data);
 
 /// Consume a `read` and `write` string into a single `PyUnicodeObject`.

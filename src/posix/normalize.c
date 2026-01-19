@@ -83,12 +83,11 @@ _posix_normalize_slash(PyUnicodeObject *read)
             // `cursor` after the first and writing the rest of the path.
             if (character != '/')
             {
-                int status = _cow_copy(read, read_size, read_kind, read_data, &write, &write_data);
-                if (status != 0)
+                if (_cow_copy(read, read_size, read_kind, read_data, &write, write_index, &write_data) != 0)
                 {
                     return NULL;
                 }
-                // use slash already at start of string, `write_index` is 1
+                PyUnicode_WRITE(write_kind, write_data, 0, '/');
                 PyUnicode_WRITE(write_kind, write_data, write_index, character);
                 write_index += 1;
                 state = NORMALIZE_SLASH_REST;
@@ -139,13 +138,9 @@ _posix_normalize_slash(PyUnicodeObject *read)
         case NORMALIZE_SLASH_REST_SLASH_SLASHES:
             if (character != '/')
             {
-                if (!write)
+                if (!write && _cow_copy(read, read_size, read_kind, read_data, &write, write_index, &write_data) != 0)
                 {
-                    int status = _cow_copy(read, read_size, read_kind, read_data, &write, &write_data);
-                    if (status != 0)
-                    {
-                        return NULL;
-                    }
+                    return NULL;
                 }
                 PyUnicode_WRITE(write_kind, write_data, write_index, '/');
                 write_index += 1;
@@ -244,13 +239,9 @@ _posix_normalize_dot(PyUnicodeObject *read)
             }
             else
             {
-                if (!write)
+                if (!write && _cow_copy(read, read_size, read_kind, read_data, &write, write_index, &write_data) != 0)
                 {
-                    int status = _cow_copy(read, read_size, read_kind, read_data, &write, &write_data);
-                    if (status != 0)
-                    {
-                        return NULL;
-                    }
+                    return NULL;
                 }
                 PyUnicode_WRITE(write_kind, write_data, write_index, character);
                 write_index += 1;

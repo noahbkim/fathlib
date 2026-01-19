@@ -4,6 +4,9 @@
 #define PY_SSIZE_T_CLEAN
 #include "Python.h"
 
+PyUnicodeObject *_windows_as_posix(PyUnicodeObject *arg);
+PyObject *windows_as_posix(PyObject *module, PyObject *arg);
+
 PyUnicodeObject *_windows_drive(PyUnicodeObject *arg);
 PyObject *windows_drive(PyObject *module, PyObject *arg);
 

@@ -67,6 +67,35 @@ PyWindowsFath_init(PyFathObject *self, PyObject *args, PyObject *kwargs)
     }
 }
 
+PyObject *
+PyWindowsFath_repr(PyWindowsFathObject *self)
+{
+    PyObject *cls = PyObject_Type((PyObject *)self);
+    if (!cls)
+    {
+        return NULL;
+    }
+
+    PyObject *cls_name = PyType_GetName((PyTypeObject *)cls);
+    Py_DECREF(cls);
+    if (!cls_name)
+    {
+        return NULL;
+    }
+
+    PyUnicodeObject *repr_inner = _windows_as_posix(self->inner);
+    if (!repr_inner)
+    {
+        return NULL;
+    }
+
+    PyObject *repr = PyUnicode_FromFormat("%U(%R)", cls_name, repr_inner);
+    Py_DECREF(cls_name);
+    Py_DECREF(repr_inner);
+
+    return repr;
+}
+
 Py_hash_t
 PyWindowsFath_hash(PyWindowsFathObject *self)
 {
@@ -94,21 +123,7 @@ PyWindowsFath_richcompare(PyWindowsFathObject *self, PyObject *other, int op)
 PyObject *
 PyWindowsFath_as_posix(PyWindowsFathObject *self)
 {
-    Py_ssize_t length = PyUnicode_GET_LENGTH(self->inner);
-    unsigned int kind = PyUnicode_KIND(self->inner);
-    void *data = PyUnicode_DATA(self->inner);
-    PyObject *posix = PyUnicode_FromKindAndData(kind, data, length);
-
-    data = PyUnicode_DATA(posix);
-    for (Py_ssize_t i = 0; i < length; ++i)
-    {
-        if (PyUnicode_READ(kind, data, i) == '\\')
-        {
-            PyUnicode_WRITE(kind, data, i, '/');
-        }
-    }
-
-    return posix;
+    return (PyObject *)_windows_as_posix(self->inner);
 }
 
 PyObject *
@@ -269,7 +284,7 @@ PyTypeObject PyWindowsFath_Type = {
     .tp_init = (initproc)PyWindowsFath_init,
     .tp_hash = (hashfunc)PyWindowsFath_hash,
     .tp_richcompare = (richcmpfunc)PyWindowsFath_richcompare,
-    .tp_repr = (reprfunc)PyFath_repr,
+    .tp_repr = (reprfunc)PyWindowsFath_repr,
     .tp_str = (reprfunc)PyFath_str,
     .tp_dealloc = (destructor)PyFath_dealloc,
     .tp_as_number = &PyWindowsFath_as_number,

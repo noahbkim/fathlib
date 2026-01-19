@@ -3,6 +3,61 @@
 #include "common.h"
 #include "windows/normalize.h"
 
+// MARK: As POSIX
+
+PyUnicodeObject *
+_windows_as_posix(PyUnicodeObject *read)
+{
+    Py_ssize_t read_size = PyUnicode_GET_LENGTH(read);
+    unsigned int read_kind = PyUnicode_KIND(read);
+    void *read_data = PyUnicode_DATA(read);
+
+    PyUnicodeObject *write = NULL;
+    unsigned int write_kind = read_kind; // just for readability
+    void *write_data = NULL;
+
+    Py_ssize_t index = 0;
+    while (index < read_size)
+    {
+        Py_UCS4 character = PyUnicode_READ(read_kind, read_data, index);
+        if (character == '\\')
+        {
+            if (!write && _cow_copy(read, read_size, read_kind, read_data, &write, index, &write_data) != 0)
+            {
+                return NULL;
+            }
+            PyUnicode_WRITE(write_kind, write_data, index, '/');
+        }
+        else
+        {
+            if (write)
+            {
+                PyUnicode_WRITE(write_kind, write_data, index, character);
+            }
+        }
+        index += 1;
+    }
+    return _cow_consume(read, read_size, read_kind, read_data, write, read_size);
+}
+
+PyObject *
+windows_as_posix(PyObject *module, PyObject *arg)
+{
+    PyUnicodeObject *fspath = _fspath(arg);
+    if (!fspath)
+    {
+        return NULL;
+    }
+    PyUnicodeObject *normalized = _windows_normalize(fspath);
+    if (!normalized)
+    {
+        return NULL;
+    }
+    PyUnicodeObject *as_posix = _windows_as_posix(normalized);
+    Py_DECREF(normalized);
+    return (PyObject *)as_posix;
+}
+
 // MARK: UNC
 
 // \\server\share
@@ -242,11 +297,11 @@ _windows_drive(PyUnicodeObject *read)
     if (length >= 1 && PyUnicode_READ(kind, data, 0) == '\\')
     {
         Py_ssize_t unc_index = _windows_unc_index(length, kind, data);
-        return (PyUnicodeObject *)PyUnicode_FromKindAndData(kind, data, unc_index);
+        return (PyUnicodeObject *)PyUnicode_Substring((PyObject *)read, 0, unc_index);
     }
     else if (length >= 2 && PyUnicode_READ(kind, data, 1) == ':')
     {
-        return (PyUnicodeObject *)PyUnicode_FromKindAndData(kind, data, 2);
+        return (PyUnicodeObject *)PyUnicode_Substring((PyObject *)read, 0, 2);
     }
     else
     {

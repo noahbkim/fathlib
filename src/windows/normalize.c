@@ -39,7 +39,7 @@ _windows_normalize_slash(PyUnicodeObject *read)
                 state = NORMALIZE_SLASH_START_SLASHES;
                 break;
             case '/':
-                if (_cow_copy(read, read_size, read_kind, read_data, &write, &write_data) != 0)
+                if (_cow_copy(read, read_size, read_kind, read_data, &write, write_index, &write_data) != 0)
                 {
                     return NULL;
                 }
@@ -67,18 +67,23 @@ _windows_normalize_slash(PyUnicodeObject *read)
                 }
                 break;
             case '/':
-                if (!write)
+                if (!write && _cow_copy(read, read_size, read_kind, read_data, &write, write_index, &write_data) != 0)
                 {
-                    if (_cow_copy(read, read_size, read_kind, read_data, &write, &write_data) != 0)
-                    {
-                        return NULL;
-                    }
+                    return NULL;
                 }
                 PyUnicode_WRITE(write_kind, write_data, write_index, '\\');
                 write_index += 1;
                 break;
             default:
-                write_index += 1;
+                if (write)
+                {
+                    PyUnicode_WRITE(write_kind, write_data, write_index, character);
+                    write_index += 1;
+                }
+                else
+                {
+                    write_index += 1;
+                }
                 state = NORMALIZE_SLASH_REST;
             }
             break;
@@ -135,12 +140,9 @@ _windows_normalize_slash(PyUnicodeObject *read)
             case '/':
                 break;
             default:
-                if (!write)
+                if (!write && _cow_copy(read, read_size, read_kind, read_data, &write, write_index, &write_data) != 0)
                 {
-                    if (_cow_copy(read, read_size, read_kind, read_data, &write, &write_data) != 0)
-                    {
-                        return NULL;
-                    }
+                    return NULL;
                 }
                 PyUnicode_WRITE(write_kind, write_data, write_index, '\\');
                 write_index += 1;
@@ -240,13 +242,9 @@ _windows_normalize_dot(PyUnicodeObject *read)
             }
             else
             {
-                if (!write)
+                if (!write && _cow_copy(read, read_size, read_kind, read_data, &write, write_index, &write_data) != 0)
                 {
-                    int status = _cow_copy(read, read_size, read_kind, read_data, &write, &write_data);
-                    if (status != 0)
-                    {
-                        return NULL;
-                    }
+                    return NULL;
                 }
                 state = NORMALIZE_DOT_REST;
                 PyUnicode_WRITE(write_kind, write_data, write_index, character);
@@ -291,16 +289,17 @@ _windows_normalize(PyUnicodeObject *read)
         return (PyUnicodeObject *)PyUnicode_FromStringAndSize(".", 1);
     }
 
-    // There is no invalid, one-character path.
-    if (length == 1)
-    {
-        return read;
-    }
-
+    // Let this case handle "/".
     read = _windows_normalize_slash(read);
     if (!read)
     {
         return NULL;
+    }
+
+    // There can't be dot parts with length 1.
+    if (length == 1)
+    {
+        return read;
     }
 
     read = _windows_normalize_dot(read);
