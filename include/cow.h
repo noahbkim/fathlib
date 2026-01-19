@@ -19,7 +19,11 @@ typedef struct
 } Cow;
 
 void cow_construct(Cow *self, PyUnicodeObject *read);
+int cow_copy(Cow *self, Py_ssize_t resize);
+int cow_advance(Cow *self, Py_UCS4 character);
 int cow_write(Cow *self, Py_UCS4 character);
+int cow_resize(Cow *self, Py_ssize_t size);
 PyUnicodeObject *cow_consume(Cow *self);
+void cow_destroy(Cow *self);
 
 #endif
