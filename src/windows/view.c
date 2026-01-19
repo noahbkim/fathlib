@@ -369,13 +369,13 @@ _windows_parent_index(PyUnicodeObject *arg)
     void *data = PyUnicode_DATA(arg);
 
     Py_ssize_t unc_index = _windows_unc_index(length, kind, data);
-    Py_ssize_t i = length - 1;
-    while (i >= unc_index && PyUnicode_READ(kind, data, i) != '\\')
+    Py_ssize_t i = length;
+    while (i > unc_index && PyUnicode_READ(kind, data, i - 1) != '\\')
     {
         i -= 1;
     }
 
-    return i;
+    return i == unc_index ? 0 : i;
 }
 
 PyObject *

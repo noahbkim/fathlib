@@ -1,5 +1,7 @@
+import ntpath
 import pathlib
 import pickle
+import posixpath
 import timeit
 from collections.abc import Callable
 
@@ -29,8 +31,8 @@ def compare(
         difference = new_time / old_time
 
     print(f"{new} is {difference:.2f}x {comparator} than {old}")
-    print(f"  {old}: {old_time} s")
-    print(f"  {new}: {new_time} s")
+    print(f"  {old}: {old_time:.2f} s")
+    print(f"  {new}: {new_time:.2f} s")
 
 
 @main
@@ -100,5 +102,23 @@ def compare_unpickle():
     compare(
         "pickle.loads(path_data)",
         "pickle.loads(fath_data)",
+        globals=globals() | locals(),
+    )
+
+
+@main
+def compare_posix_dirname():
+    compare(
+        "posixpath.dirname('/the/quick/brown/fox')",
+        "fathlib.posix_parent('/the/quick/brown/fox')",
+        globals=globals() | locals(),
+    )
+
+
+@main
+def compare_windows_dirname():
+    compare(
+        "ntpath.dirname('C:\\\\the\\\\quick\\\\brown\\\\fox')",
+        "fathlib.windows_parent('C:\\\\the\\\\quick\\\\brown\\\\fox')",
         globals=globals() | locals(),
     )

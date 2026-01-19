@@ -104,8 +104,8 @@ _posix_parent_index(PyUnicodeObject *arg)
     void *data = PyUnicode_DATA(arg);
 
     // Read until the next slash or the start of the string.
-    Py_ssize_t i = length - 1;
-    while (i >= 0 && PyUnicode_READ(kind, data, i) != '/')
+    Py_ssize_t i = length;
+    while (i > 0 && PyUnicode_READ(kind, data, i - 1) != '/')
     {
         i -= 1;
     }
