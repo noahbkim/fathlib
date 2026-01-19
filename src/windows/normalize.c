@@ -39,9 +39,9 @@ _windows_normalize(PyUnicodeObject *read)
     cow_construct(&cow, read);
 
     NormalizeSlash state = NORMALIZE_START;
-    while (cow.read_index < cow.read_size)
+    for (Py_ssize_t read_index = 0; read_index < cow.read_size; ++read_index)
     {
-        Py_UCS4 character = PyUnicode_READ(cow.read_kind, cow.read_data, cow.read_index);
+        Py_UCS4 character = PyUnicode_READ(cow.read_kind, cow.read_data, read_index);
         switch (state)
         {
         case NORMALIZE_START:
@@ -234,12 +234,11 @@ _windows_normalize(PyUnicodeObject *read)
             }
             break;
         }
-        cow.read_index += 1;
     }
 
     // This can probably be fit into the FSA, but we need to ensure at least
     // one leading dot is included. This case gets hit for e.g. "./.".
-    if (cow.write_index == 0 && cow.read_index > 0)
+    if (cow.write_index == 0 && cow.read_size > 0)
     {
         cow.write_index = 1;
     }

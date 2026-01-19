@@ -43,4 +43,4 @@ depends = [
     "include/fath.h",
 ]
 include-dirs = ["include"]
-extra-compile-args = ["-Wall", "-std=c17", "-g", "-O0", "-UNDEBUG"]
+extra-compile-args = ["-Wall", "-std=c17"] # "-g", "-O0", "-UNDEBUG"

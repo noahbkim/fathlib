@@ -18,9 +18,9 @@ _windows_as_posix(PyUnicodeObject *read)
     Cow cow;
     cow_construct(&cow, read);
 
-    while (cow.read_index < cow.read_size)
+    for (Py_ssize_t read_index = 0; read_index < cow.read_size; ++read_index)
     {
-        Py_UCS4 character = PyUnicode_READ(cow.read_kind, cow.read_data, cow.read_index);
+        Py_UCS4 character = PyUnicode_READ(cow.read_kind, cow.read_data, read_index);
         if (character == '\\')
         {
             COW_ADVANCE(&cow, '/');
@@ -29,7 +29,6 @@ _windows_as_posix(PyUnicodeObject *read)
         {
             COW_ADVANCE(&cow, character);
         }
-        cow.read_index += 1;
     }
 
     return cow_consume(&cow);

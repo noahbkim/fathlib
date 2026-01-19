@@ -17,7 +17,6 @@ typedef struct
     Py_ssize_t write_size;
     void *read_data;
     void *write_data;
-    Py_ssize_t read_index;
     Py_ssize_t write_index;
     unsigned int read_kind;
     unsigned int write_kind;

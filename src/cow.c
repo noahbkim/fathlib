@@ -7,7 +7,6 @@ cow_construct(Cow *self, PyUnicodeObject *read)
     self->read_size = PyUnicode_GET_LENGTH(read);
     self->read_kind = PyUnicode_KIND(read);
     self->read_data = PyUnicode_DATA(read);
-    self->read_index = 0;
     self->write = NULL;
     self->write_size = 0;
     self->write_kind = 0;
@@ -46,8 +45,7 @@ cow_advance(Cow *self, Py_UCS4 character)
         self->write_index += 1;
         return 0;
     }
-    else if (self->read_index != self->write_index ||
-             PyUnicode_READ(self->read_kind, self->read_data, self->read_index) != character)
+    else if (PyUnicode_READ(self->read_kind, self->read_data, self->write_index) != character)
     {
         cow_copy(self, self->read_size);
         PyUnicode_WRITE(self->write_kind, self->write_data, self->write_index, character);
