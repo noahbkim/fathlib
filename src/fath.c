@@ -14,7 +14,7 @@ PyFath_new(PyTypeObject *type, PyObject *args, PyObject *kwargs)
         return NULL;
     }
 
-    self->inner = (PyUnicodeObject *)PyUnicode_New(0, 0);
+    self->inner = (PyUnicodeObject *)PyUnicode_FromString("");
     if (!self->inner)
     {
         Py_DECREF(self);
