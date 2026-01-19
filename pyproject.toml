@@ -25,6 +25,7 @@ sources = [
     "src/windows/normalize.c",
     "src/windows/view.c",
     "src/common.c",
+    "src/cow.c",
     "src/fath.c",
     "src/fathlib.c",
 ]
@@ -38,7 +39,8 @@ depends = [
     "include/windows/normalize.h",
     "include/windows/view.h",
     "include/common.h",
+    "include/cow.h",
     "include/fath.h",
 ]
 include-dirs = ["include"]
-extra-compile-args = ["-Wall", "-std=c17"]
+extra-compile-args = ["-Wall", "-std=c17"] # "-g", "-O0", "-UNDEBUG"
