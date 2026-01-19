@@ -58,23 +58,15 @@ _posix_name(PyUnicodeObject *arg)
     int kind = PyUnicode_KIND(arg);
     void *data = PyUnicode_DATA(arg);
 
-    // Skip trailing slashes
-    Py_ssize_t i = length - 1;
-    while (i >= 0 && PyUnicode_READ(kind, data, i) == '/')
-    {
-        i -= 1;
-    }
-
-    Py_ssize_t end = i + 1;
-
     // Read until the next slash or the start of the string.
+    Py_ssize_t i = length - 1;
     while (i >= 0 && PyUnicode_READ(kind, data, i) != '/')
     {
         i -= 1;
     }
 
     // Optimization: use the same string if the whole thing is the name.
-    if (i < 0 && end == length)
+    if (i == -1)
     {
         Py_INCREF(arg);
         return arg;
@@ -82,7 +74,7 @@ _posix_name(PyUnicodeObject *arg)
     else
     {
         Py_ssize_t start = i + 1;
-        return (PyUnicodeObject *)PyUnicode_Substring((PyObject *)arg, start, end);
+        return (PyUnicodeObject *)PyUnicode_Substring((PyObject *)arg, start, length);
     }
 }
 
@@ -111,14 +103,8 @@ _posix_parent_index(PyUnicodeObject *arg)
     int kind = PyUnicode_KIND(arg);
     void *data = PyUnicode_DATA(arg);
 
-    // Skip trailing slashes
-    Py_ssize_t i = length - 1;
-    while (i >= 0 && PyUnicode_READ(kind, data, i) == '/')
-    {
-        i -= 1;
-    }
-
     // Read until the next slash or the start of the string.
+    Py_ssize_t i = length - 1;
     while (i >= 0 && PyUnicode_READ(kind, data, i) != '/')
     {
         i -= 1;

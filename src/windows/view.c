@@ -3,6 +3,8 @@
 #include "common.h"
 #include "windows/normalize.h"
 
+// MARK: UNC
+
 // \\server\share
 // \\?\UNC\server\share
 // \\.\device
@@ -228,6 +230,8 @@ _windows_unc_index(Py_ssize_t length, unsigned int kind, void *data)
     return unc_index;
 }
 
+// MARK: Drive
+
 PyUnicodeObject *
 _windows_drive(PyUnicodeObject *read)
 {
@@ -264,4 +268,136 @@ windows_drive(PyObject *module, PyObject *arg)
         return NULL;
     }
     return (PyObject *)_windows_drive(inner);
+}
+
+// MARK: Root
+
+PyUnicodeObject *
+_windows_root(PyUnicodeObject *arg)
+{
+    Py_ssize_t length = PyUnicode_GET_LENGTH(arg);
+    int kind = PyUnicode_KIND(arg);
+    void *data = PyUnicode_DATA(arg);
+    if (length > 0 && PyUnicode_READ(kind, data, 0) == '\\')
+    {
+        return (PyUnicodeObject *)PyUnicode_FromString("\\");
+    }
+    else if (length >= 3 && PyUnicode_READ(kind, data, 1) == ':' && PyUnicode_READ(kind, data, 2) == '\\')
+    {
+        return (PyUnicodeObject *)PyUnicode_FromString("\\");
+    }
+    else
+    {
+        return (PyUnicodeObject *)PyUnicode_FromString("");
+    }
+}
+
+PyObject *
+windows_root(PyObject *module, PyObject *arg)
+{
+    PyUnicodeObject *fspath = _fspath(arg);
+    if (!fspath)
+    {
+        return NULL;
+    }
+    PyUnicodeObject *normalized = _windows_normalize(fspath);
+    if (!normalized)
+    {
+        return NULL;
+    }
+    PyUnicodeObject *root = _windows_root(normalized);
+    Py_DECREF(normalized);
+    return (PyObject *)root;
+}
+
+// MARK: Name
+
+PyUnicodeObject *
+_windows_name(PyUnicodeObject *arg)
+{
+    Py_ssize_t length = PyUnicode_GET_LENGTH(arg);
+    int kind = PyUnicode_KIND(arg);
+    void *data = PyUnicode_DATA(arg);
+
+    Py_ssize_t unc_index = _windows_unc_index(length, kind, data);
+    Py_ssize_t i = length - 1;
+
+    // Read until the next slash or the start of the string.
+    while (i >= unc_index && PyUnicode_READ(kind, data, i) != '\\')
+    {
+        i -= 1;
+    }
+
+    // Optimization: use the same string if the whole thing is the name.
+    if (i == -1)
+    {
+        Py_INCREF(arg);
+        return arg;
+    }
+    else
+    {
+        Py_ssize_t start = i + 1;
+        return (PyUnicodeObject *)PyUnicode_Substring((PyObject *)arg, start, length);
+    }
+}
+
+PyObject *
+windows_name(PyObject *module, PyObject *arg)
+{
+    PyUnicodeObject *fspath = _fspath(arg);
+    if (!fspath)
+    {
+        return NULL;
+    }
+    PyUnicodeObject *normalized = _windows_normalize(fspath);
+    if (!normalized)
+    {
+        return NULL;
+    }
+    PyUnicodeObject *name = _windows_name(normalized);
+    Py_DECREF(normalized);
+    return (PyObject *)name;
+}
+
+// MARK: Parent
+
+Py_ssize_t
+_windows_parent_index(PyUnicodeObject *arg)
+{
+    Py_ssize_t length = PyUnicode_GET_LENGTH(arg);
+    int kind = PyUnicode_KIND(arg);
+    void *data = PyUnicode_DATA(arg);
+
+    Py_ssize_t unc_index = _windows_unc_index(length, kind, data);
+    Py_ssize_t i = length - 1;
+    while (i >= unc_index && PyUnicode_READ(kind, data, i) != '\\')
+    {
+        i -= 1;
+    }
+
+    return i;
+}
+
+PyObject *
+windows_parent(PyObject *module, PyObject *arg)
+{
+    PyUnicodeObject *fspath = _fspath(arg);
+    if (!fspath)
+    {
+        return NULL;
+    }
+    PyUnicodeObject *normalized = _windows_normalize(fspath);
+    if (!normalized)
+    {
+        return NULL;
+    }
+    Py_ssize_t parent_index = _windows_parent_index(normalized);
+    if (parent_index > 0)
+    {
+        return PyUnicode_Substring(arg, 0, parent_index);
+    }
+    else
+    {
+        Py_RETURN_NONE;
+    }
 }
