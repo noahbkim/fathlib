@@ -37,3 +37,36 @@ This library is a work in progress. Its goals is to pass the `pathlib` unit
 tests while being faster and lighter. It achieves that by reimplementing path
 storage and manipulation in C, avoiding spurious allocations and inefficient
 data accesses.
+
+## Development
+
+To build and install the extension after making changes, run the following:
+
+```
+uv build . && uv pip install .
+```
+
+For whatever reason, editable installation (using `uv pip install -e .`)
+doesn't work with the extension; changes in the C source will not be reflected
+at runtime after running `uv build .` alone. Please let me know if I'm doing
+something wrong.
+
+To run tests:
+
+```
+uv run python -m unittest discover test
+```
+
+Many tests are still failing.
+
+## Progress
+
+The following is a rough roadmap for this repository:
+
+  - [x] Skeleton
+  - [x] Normalization
+  - [ ] Join (in progress)
+  - [ ] Simple properties (in progress)
+  - [ ] Parts
+  - [ ] File system methods
+  - [ ] Trivia
