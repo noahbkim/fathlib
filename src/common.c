@@ -1,19 +1,5 @@
 #include "common.h"
 
-Py_ssize_t
-_maxchar(unsigned int kind)
-{
-    switch (kind)
-    {
-    case PyUnicode_1BYTE_KIND:
-        return 0xffU;
-    case PyUnicode_2BYTE_KIND:
-        return 0xffffU;
-    default:
-        return 0x10ffffU;
-    }
-}
-
 // MARK: FSPath
 
 PyUnicodeObject *
@@ -79,7 +65,7 @@ _cow_copy(PyUnicodeObject *read,
     // }
     else
     {
-        *write = (PyUnicodeObject *)PyUnicode_New(read_size, _maxchar(read_kind));
+        *write = (PyUnicodeObject *)PyUnicode_New(read_size, PyUnicode_MAX_CHAR_VALUE(read));
         if (!*write)
         {
             return -1;
