@@ -47,8 +47,17 @@ def compare_construct_empty():
 @main
 def compare_construct_single():
     compare(
-        "pathlib.Path('/foo')",
-        "fathlib.Path('/foo')",
+        "pathlib.Path('/the/quick/brown/fox')",
+        "fathlib.Path('/the/quick/brown/fox')",
+        globals=globals(),
+    )
+
+
+@main
+def compare_construct_single_string():
+    compare(
+        "str('/the/quick/brown/fox')",
+        "fathlib.Path('/the/quick/brown/fox')",
         globals=globals(),
     )
 
@@ -102,6 +111,24 @@ def compare_unpickle():
     compare(
         "pickle.loads(path_data)",
         "pickle.loads(fath_data)",
+        globals=globals() | locals(),
+    )
+
+
+@main
+def compare_posix_join():
+    compare(
+        "posixpath.join('/the', 'quick', 'brown', 'fox')",
+        "fathlib.posix_join('/the', 'quick', 'brown', 'fox')",
+        globals=globals() | locals(),
+    )
+
+
+@main
+def compare_windows_join():
+    compare(
+        "ntpath.join('/the', 'quick', 'brown', 'fox')",
+        "fathlib.windows_join('/the', 'quick', 'brown', 'fox')",
         globals=globals() | locals(),
     )
 
