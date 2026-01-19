@@ -162,6 +162,19 @@ PyWindowsFath_joinpath(PyWindowsFathObject *self, PyObject *args)
     return joined;
 }
 
+PyObject *
+PyWindowsFath_is_absolute(PyWindowsFathObject *self)
+{
+    if (_windows_is_absolute(self->inner))
+    {
+        Py_RETURN_TRUE;
+    }
+    else
+    {
+        Py_RETURN_FALSE;
+    }
+}
+
 // MARK: Properties
 
 PyObject *
@@ -251,12 +264,13 @@ PyWindowsFath_true_divide(PyObject *self, PyObject *arg)
 // MARK: Declaration
 
 static PyMethodDef PyWindowsFath_methods[] = {
-    {"as_posix",     (PyCFunction)PyWindowsFath_as_posix, METH_NOARGS,  PyDoc_STR("Normalize the path with posix slashes")},
-    {"joinpath",     (PyCFunction)PyWindowsFath_joinpath, METH_VARARGS, PyDoc_STR("Append another path")                  },
-    {"__fspath__",   (PyCFunction)PyFath_str,             METH_NOARGS,  PyDoc_STR("Get the underlying string")            },
-    {"__getstate__", (PyCFunction)PyFath_getstate,        METH_NOARGS,  PyDoc_STR("Serialize this fath for pickling")     },
-    {"__setstate__", (PyCFunction)PyFath_setstate,        METH_O,       PyDoc_STR("Deserialize this fath for pickling")   },
-    {NULL,           NULL,                                0,            NULL                                              },
+    {"as_posix",     (PyCFunction)PyWindowsFath_as_posix,    METH_NOARGS,  PyDoc_STR("Normalize the path with posix slashes")},
+    {"joinpath",     (PyCFunction)PyWindowsFath_joinpath,    METH_VARARGS, PyDoc_STR("Append another path")                  },
+    {"is_absolute",  (PyCFunction)PyWindowsFath_is_absolute, METH_NOARGS,  PyDoc_STR("Get whether the path is absolute")     },
+    {"__fspath__",   (PyCFunction)PyFath_str,                METH_NOARGS,  PyDoc_STR("Get the underlying string")            },
+    {"__getstate__", (PyCFunction)PyFath_getstate,           METH_NOARGS,  PyDoc_STR("Serialize this fath for pickling")     },
+    {"__setstate__", (PyCFunction)PyFath_setstate,           METH_O,       PyDoc_STR("Deserialize this fath for pickling")   },
+    {NULL,           NULL,                                   0,            NULL                                              },
 };
 
 static PyGetSetDef PyWindowsFath_getset[] = {

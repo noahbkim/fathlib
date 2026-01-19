@@ -134,6 +134,19 @@ PyPosixFath_joinpath(PyPosixFathObject *self, PyObject *args)
     return joined;
 }
 
+PyObject *
+PyPosixFath_is_absolute(PyPosixFathObject *self)
+{
+    if (_posix_is_absolute(self->inner))
+    {
+        Py_RETURN_TRUE;
+    }
+    else
+    {
+        Py_RETURN_FALSE;
+    }
+}
+
 // MARK: Properties
 
 PyObject *
@@ -223,12 +236,13 @@ PyPosixFath_true_divide(PyObject *self, PyObject *arg)
 // MARK: Declaration
 
 static PyMethodDef PyPosixFath_methods[] = {
-    {"as_posix",     (PyCFunction)PyPosixFath_as_posix, METH_NOARGS,  PyDoc_STR("Get the underlying string")         },
-    {"joinpath",     (PyCFunction)PyPosixFath_joinpath, METH_VARARGS, PyDoc_STR("Append another path")               },
-    {"__fspath__",   (PyCFunction)PyFath_str,           METH_NOARGS,  PyDoc_STR("Get the underlying string")         },
-    {"__getstate__", (PyCFunction)PyFath_getstate,      METH_NOARGS,  PyDoc_STR("Serialize this fath for pickling")  },
-    {"__setstate__", (PyCFunction)PyFath_setstate,      METH_O,       PyDoc_STR("Deserialize this fath for pickling")},
-    {NULL,           NULL,                              0,            NULL                                           },
+    {"as_posix",     (PyCFunction)PyPosixFath_as_posix,    METH_NOARGS,  PyDoc_STR("Get the underlying string")         },
+    {"joinpath",     (PyCFunction)PyPosixFath_joinpath,    METH_VARARGS, PyDoc_STR("Append another path")               },
+    {"is_absolute",  (PyCFunction)PyPosixFath_is_absolute, METH_NOARGS,  PyDoc_STR("Get whether the path is absolute")  },
+    {"__fspath__",   (PyCFunction)PyFath_str,              METH_NOARGS,  PyDoc_STR("Get the underlying string")         },
+    {"__getstate__", (PyCFunction)PyFath_getstate,         METH_NOARGS,  PyDoc_STR("Serialize this fath for pickling")  },
+    {"__setstate__", (PyCFunction)PyFath_setstate,         METH_O,       PyDoc_STR("Deserialize this fath for pickling")},
+    {NULL,           NULL,                                 0,            NULL                                           },
 };
 
 static PyGetSetDef PyPosixFath_getset[] = {
