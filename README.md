@@ -57,7 +57,11 @@ To run tests:
 uv run python -m unittest discover test
 ```
 
-Many tests are still failing.
+To run benchmarks:
+
+```
+uv run test/benchmark.py
+```
 
 ## Progress
 
@@ -70,3 +74,5 @@ The following is a rough roadmap for this repository:
   - [ ] Parts
   - [ ] File system methods
   - [ ] Trivia
+  - [ ] 3.12 test suite
+  - [ ] >3.12 test suites
