@@ -1,23 +1,5 @@
 #include "cow.h"
 
-int
-cow_copy(Cow *self, Py_ssize_t resize)
-{
-    self->write = (PyUnicodeObject *)PyUnicode_New(resize, PyUnicode_MAX_CHAR_VALUE(self->read));
-    if (!self->write)
-    {
-        return -1;
-    }
-    self->write_size = resize;
-    self->write_kind = PyUnicode_KIND(self->write);
-    self->write_data = PyUnicode_DATA(self->write);
-    for (Py_ssize_t i = 0; i < self->write_index; ++i)
-    {
-        PyUnicode_WRITE(self->write_kind, self->write_data, i, PyUnicode_READ(self->read_kind, self->read_data, i));
-    }
-    return 0;
-}
-
 void
 cow_construct(Cow *self, PyUnicodeObject *read)
 {
@@ -31,6 +13,28 @@ cow_construct(Cow *self, PyUnicodeObject *read)
     self->write_kind = 0;
     self->write_data = NULL;
     self->write_index = 0;
+}
+
+int
+cow_copy(Cow *self, Py_ssize_t resize)
+{
+    if (self->write)
+    {
+        return 0;
+    }
+    self->write = (PyUnicodeObject *)PyUnicode_New(resize, PyUnicode_MAX_CHAR_VALUE(self->read));
+    if (!self->write)
+    {
+        return -1;
+    }
+    self->write_size = resize;
+    self->write_kind = PyUnicode_KIND(self->write);
+    self->write_data = PyUnicode_DATA(self->write);
+    for (Py_ssize_t i = 0; i < self->write_index; ++i)
+    {
+        PyUnicode_WRITE(self->write_kind, self->write_data, i, PyUnicode_READ(self->read_kind, self->read_data, i));
+    }
+    return 0;
 }
 
 int
@@ -128,6 +132,5 @@ cow_consume(Cow *self)
 void
 cow_destroy(Cow *self)
 {
-    Py_DECREF(self->read);
     Py_XDECREF(self->write);
 }

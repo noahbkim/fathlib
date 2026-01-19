@@ -1,7 +1,5 @@
 #include "windows/normalize.h"
 
-#include <stdbool.h>
-
 #include "common.h"
 #include "cow.h"
 
@@ -10,8 +8,6 @@
     {                                                                                                                  \
         goto error;                                                                                                    \
     }
-
-// MARK: Slashes
 
 typedef enum
 {
@@ -36,7 +32,6 @@ _windows_normalize(PyUnicodeObject *read)
 {
     if (PyUnicode_GET_LENGTH(read) == 0)
     {
-        Py_DECREF(read);
         return (PyUnicodeObject *)PyUnicode_FromStringAndSize(".", 1);
     }
 
@@ -259,10 +254,12 @@ error:
 PyObject *
 windows_normalize(PyObject *module, PyObject *arg)
 {
-    PyUnicodeObject *inner = _fspath(arg);
-    if (!inner)
+    PyUnicodeObject *fspath = _fspath(arg);
+    if (!fspath)
     {
         return NULL;
     }
-    return (PyObject *)_windows_normalize(inner);
+    PyUnicodeObject *normalized = _windows_normalize(fspath);
+    Py_DECREF(fspath);
+    return (PyObject *)normalized;
 }

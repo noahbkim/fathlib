@@ -1,43 +1,42 @@
 #include "windows/view.h"
 
 #include "common.h"
+#include "cow.h"
 #include "windows/normalize.h"
+
+#define COW_ADVANCE(SELF, READ)                                                                                        \
+    if (cow_advance((SELF), (READ)) != 0)                                                                              \
+    {                                                                                                                  \
+        goto error;                                                                                                    \
+    }
 
 // MARK: As POSIX
 
 PyUnicodeObject *
 _windows_as_posix(PyUnicodeObject *read)
 {
-    Py_ssize_t read_size = PyUnicode_GET_LENGTH(read);
-    unsigned int read_kind = PyUnicode_KIND(read);
-    void *read_data = PyUnicode_DATA(read);
+    Cow cow;
+    cow_construct(&cow, read);
 
-    PyUnicodeObject *write = NULL;
-    unsigned int write_kind = read_kind; // just for readability
-    void *write_data = NULL;
-
-    Py_ssize_t index = 0;
-    while (index < read_size)
+    while (cow.read_index < cow.read_size)
     {
-        Py_UCS4 character = PyUnicode_READ(read_kind, read_data, index);
+        Py_UCS4 character = PyUnicode_READ(cow.read_kind, cow.read_data, cow.read_index);
         if (character == '\\')
         {
-            if (!write && _cow_copy(read, read_size, read_kind, read_data, &write, index, &write_data) != 0)
-            {
-                return NULL;
-            }
-            PyUnicode_WRITE(write_kind, write_data, index, '/');
+            COW_ADVANCE(&cow, '/');
         }
         else
         {
-            if (write)
-            {
-                PyUnicode_WRITE(write_kind, write_data, index, character);
-            }
+            COW_ADVANCE(&cow, character);
         }
-        index += 1;
+        cow.read_index += 1;
     }
-    return _cow_consume(read, read_size, read_kind, read_data, write, read_size);
+
+    return cow_consume(&cow);
+
+error:
+    cow_destroy(&cow);
+    return NULL;
 }
 
 PyObject *

@@ -1,319 +1,181 @@
 #include "posix/normalize.h"
+
 #include "common.h"
+#include "cow.h"
 
-// MARK: Slashes
+#define COW_ADVANCE(SELF, READ)                                                                                        \
+    if (cow_advance((SELF), (READ)) != 0)                                                                              \
+    {                                                                                                                  \
+        goto error;                                                                                                    \
+    }
 
 typedef enum
 {
-    NORMALIZE_SLASH_START,
-    NORMALIZE_SLASH_START_SLASH,
-    NORMALIZE_SLASH_START_SLASH_SLASH,
-    NORMALIZE_SLASH_START_SLASH_SLASH_SLASHES,
-    NORMALIZE_SLASH_REST,
-    NORMALIZE_SLASH_REST_SLASH,
-    NORMALIZE_SLASH_REST_SLASH_SLASHES,
+    NORMALIZE_START,
+    NORMALIZE_START_SLASH,
+    NORMALIZE_START_SLASH_SLASH,
+    NORMALIZE_START_SLASH_SLASH_SLASHES,
+    NORMALIZE_PART,
+    NORMALIZE_PART_SLASHES,
+    NORMALIZE_DOT,
+    NORMALIZE_DOT_SLASHES,
 } NormalizeSlash;
-
-PyUnicodeObject *
-_posix_normalize_slash(PyUnicodeObject *read)
-{
-    Py_ssize_t read_size = PyUnicode_GET_LENGTH(read);
-    unsigned int read_kind = PyUnicode_KIND(read);
-    void *read_data = PyUnicode_DATA(read);
-
-    PyUnicodeObject *write = NULL;
-    unsigned int write_kind = read_kind; // just for readability
-    void *write_data = NULL;
-
-    Py_ssize_t read_index = 0;
-    Py_ssize_t write_index = 0;
-    NormalizeSlash state = NORMALIZE_SLASH_START;
-    while (read_index < read_size)
-    {
-        Py_UCS4 character = PyUnicode_READ(read_kind, read_data, read_index);
-        switch (state)
-        {
-        case NORMALIZE_SLASH_START:
-            // Always advance the first character, but possibly transition into
-            // a different state for starting slashes or dots.
-            if (character == '/')
-            {
-                write_index += 1;
-                state = NORMALIZE_SLASH_START_SLASH;
-            }
-            else
-            {
-                write_index += 1;
-                state = NORMALIZE_SLASH_REST;
-            }
-            break;
-        case NORMALIZE_SLASH_START_SLASH:
-            // Always advance the second character. Check if we need to handle
-            // a double-slash root or collapse three or more slashes.
-            if (character == '/')
-            {
-                write_index += 1;
-                state = NORMALIZE_SLASH_START_SLASH_SLASH;
-            }
-            else
-            {
-                write_index += 1;
-                state = NORMALIZE_SLASH_REST;
-            }
-            break;
-        case NORMALIZE_SLASH_START_SLASH_SLASH:
-            // If there are three or more slashes, collapse them by setting the
-            // `cursor` position after the first. If the string ends, we will
-            // return a string with a single slash. If it doesn't, we can
-            // resume writing non-slash characters.
-            if (character == '/')
-            {
-                write_index = 1;
-                state = NORMALIZE_SLASH_START_SLASH_SLASH_SLASHES;
-            }
-            else
-            {
-                write_index += 1;
-                state = NORMALIZE_SLASH_REST;
-            }
-            break;
-        case NORMALIZE_SLASH_START_SLASH_SLASH_SLASHES:
-            // When we reach the first non-slash after three or more slashes,
-            // we have to strip the redundant ones. We can do this by setting
-            // `cursor` after the first and writing the rest of the path.
-            if (character != '/')
-            {
-                if (_cow_copy(read, read_size, read_kind, read_data, &write, write_index, &write_data) != 0)
-                {
-                    return NULL;
-                }
-                PyUnicode_WRITE(write_kind, write_data, 0, '/');
-                PyUnicode_WRITE(write_kind, write_data, write_index, character);
-                write_index += 1;
-                state = NORMALIZE_SLASH_REST;
-            }
-            break;
-        case NORMALIZE_SLASH_REST:
-            // Once past the root of the path, normalize redundant slashes.
-            if (character == '/')
-            {
-                state = NORMALIZE_SLASH_REST_SLASH;
-            }
-            else
-            {
-                if (write)
-                {
-                    PyUnicode_WRITE(write_kind, write_data, write_index, character);
-                    write_index += 1;
-                }
-                else
-                {
-                    write_index += 1;
-                }
-            }
-            break;
-        case NORMALIZE_SLASH_REST_SLASH:
-            if (character == '/')
-            {
-                state = NORMALIZE_SLASH_REST_SLASH_SLASHES;
-            }
-            else
-            {
-                if (write)
-                {
-                    state = NORMALIZE_SLASH_REST;
-                    PyUnicode_WRITE(write_kind, write_data, write_index, '/');
-                    write_index += 1;
-                    PyUnicode_WRITE(write_kind, write_data, write_index, character);
-                    write_index += 1;
-                }
-                else
-                {
-                    state = NORMALIZE_SLASH_REST;
-                    write_index += 1;
-                    write_index += 1;
-                }
-            }
-            break;
-        case NORMALIZE_SLASH_REST_SLASH_SLASHES:
-            if (character != '/')
-            {
-                if (!write && _cow_copy(read, read_size, read_kind, read_data, &write, write_index, &write_data) != 0)
-                {
-                    return NULL;
-                }
-                PyUnicode_WRITE(write_kind, write_data, write_index, '/');
-                write_index += 1;
-                PyUnicode_WRITE(write_kind, write_data, write_index, character);
-                write_index += 1;
-                state = NORMALIZE_SLASH_REST;
-            }
-            break;
-        }
-        read_index += 1;
-    }
-    return _cow_consume(read, read_size, read_kind, read_data, write, write_index);
-}
-
-PyObject *
-posix_normalize_slash(PyObject *module, PyObject *arg)
-{
-    PyUnicodeObject *inner = _fspath(arg);
-    if (!inner)
-    {
-        return NULL;
-    }
-    return (PyObject *)_posix_normalize_slash(inner);
-}
-
-// MARK: Dot
-
-typedef enum
-{
-    NORMALIZE_DOT_REST,
-    NORMALIZE_DOT_REST_DOT,
-    NORMALIZE_DOT_REST_DOT_SLASH,
-} NormalizeDot;
-
-PyUnicodeObject *
-_posix_normalize_dot(PyUnicodeObject *read)
-{
-    Py_ssize_t read_size = PyUnicode_GET_LENGTH(read);
-    unsigned int read_kind = PyUnicode_KIND(read);
-    void *read_data = PyUnicode_DATA(read);
-
-    PyUnicodeObject *write = NULL;
-    unsigned int write_kind = read_kind; // just for readability
-    void *write_data = NULL;
-
-    Py_ssize_t read_index = 0;
-    Py_ssize_t write_index = 0;
-    NormalizeDot state = NORMALIZE_DOT_REST;
-    while (read_index < read_size)
-    {
-        Py_UCS4 character = PyUnicode_READ(read_kind, read_data, read_index);
-        switch (state)
-        {
-        case NORMALIZE_DOT_REST:
-            if (character == '.')
-            {
-                state = NORMALIZE_DOT_REST_DOT;
-            }
-            else
-            {
-                if (write)
-                {
-                    PyUnicode_WRITE(write_kind, write_data, write_index, character);
-                    write_index += 1;
-                }
-                else
-                {
-                    write_index += 1;
-                }
-                state = NORMALIZE_DOT_REST;
-            }
-            break;
-        case NORMALIZE_DOT_REST_DOT:
-            if (character == '/')
-            {
-                state = NORMALIZE_DOT_REST_DOT_SLASH;
-            }
-            else
-            {
-                if (write)
-                {
-                    PyUnicode_WRITE(write_kind, write_data, write_index, character);
-                    write_index += 1;
-                }
-                else
-                {
-                    write_index += 1;
-                }
-                state = NORMALIZE_DOT_REST;
-            }
-            break;
-        case NORMALIZE_DOT_REST_DOT_SLASH:
-            if (character == '.')
-            {
-                state = NORMALIZE_DOT_REST_DOT;
-            }
-            else
-            {
-                if (!write && _cow_copy(read, read_size, read_kind, read_data, &write, write_index, &write_data) != 0)
-                {
-                    return NULL;
-                }
-                PyUnicode_WRITE(write_kind, write_data, write_index, character);
-                write_index += 1;
-                state = NORMALIZE_DOT_REST;
-            }
-            break;
-        }
-        read_index += 1;
-    }
-
-    // This can probably be fit into the FSA, but we need to ensure at least
-    // one leading dot is included. This case gets hit for e.g. "./.".
-    if (write_index == 0 && read_index > 0)
-    {
-        write_index = 1;
-    }
-
-    return _cow_consume(read, read_size, read_kind, read_data, write, write_index);
-}
-
-PyObject *
-posix_normalize_dot(PyObject *module, PyObject *arg)
-{
-    PyUnicodeObject *inner = _fspath(arg);
-    if (!inner)
-    {
-        return NULL;
-    }
-    return (PyObject *)_posix_normalize_dot(inner);
-}
-
-// MARK: Posix
 
 PyUnicodeObject *
 _posix_normalize(PyUnicodeObject *read)
 {
-    Py_ssize_t length = PyUnicode_GET_LENGTH(read);
-
-    // Replace an empty string with a ".".
-    if (length == 0)
+    switch (PyUnicode_GET_LENGTH(read))
     {
-        return (PyUnicodeObject *)PyUnicode_FromStringAndSize(".", 1);
-    }
-
-    // There is no invalid, one-character path.
-    if (length == 1)
-    {
+    case 0:
+        return (PyUnicodeObject *)PyUnicode_FromString(".");
+    case 1:
+        Py_INCREF(read);
         return read;
     }
 
-    read = _posix_normalize_slash(read);
-    if (!read)
+    Cow cow;
+    cow_construct(&cow, read);
+
+    NormalizeSlash state = NORMALIZE_START;
+    while (cow.read_index < cow.read_size)
     {
-        return NULL;
+        Py_UCS4 character = PyUnicode_READ(cow.read_kind, cow.read_data, cow.read_index);
+        switch (state)
+        {
+        case NORMALIZE_START:
+            switch (character)
+            {
+            case '/':
+                COW_ADVANCE(&cow, '/');
+                state = NORMALIZE_START_SLASH;
+                break;
+            case '.':
+                state = NORMALIZE_DOT;
+                break;
+            default:
+                COW_ADVANCE(&cow, character);
+                state = NORMALIZE_PART;
+            }
+            break;
+        case NORMALIZE_START_SLASH:
+            switch (character)
+            {
+            case '/':
+                cow.write_index += 1; // Include the double slash if we stop
+                state = NORMALIZE_START_SLASH_SLASH;
+                break;
+            case '.':
+                state = NORMALIZE_DOT;
+                break;
+            default:
+                COW_ADVANCE(&cow, character);
+                state = NORMALIZE_PART;
+            }
+            break;
+        case NORMALIZE_START_SLASH_SLASH:
+            switch (character)
+            {
+            case '/':
+                state = NORMALIZE_START_SLASH_SLASH_SLASHES;
+                cow.write_index -= 1; // Remove the slash if we have more
+                break;
+            case '.':
+                state = NORMALIZE_DOT;
+                break;
+            default:
+                COW_ADVANCE(&cow, character);
+                state = NORMALIZE_PART;
+            }
+            break;
+        case NORMALIZE_START_SLASH_SLASH_SLASHES:
+            switch (character)
+            {
+            case '/':
+                break;
+            case '.':
+                state = NORMALIZE_DOT;
+                break;
+            default:
+                COW_ADVANCE(&cow, character);
+                state = NORMALIZE_PART;
+            }
+            break;
+        case NORMALIZE_PART:
+            switch (character)
+            {
+            case '/':
+                state = NORMALIZE_PART_SLASHES;
+                break;
+            default:
+                COW_ADVANCE(&cow, character);
+            }
+            break;
+        case NORMALIZE_PART_SLASHES:
+            switch (character)
+            {
+            case '/':
+                break;
+            case '.':
+                state = NORMALIZE_DOT;
+                break;
+            default:
+                COW_ADVANCE(&cow, '/');
+                COW_ADVANCE(&cow, character);
+                state = NORMALIZE_PART;
+            }
+            break;
+        case NORMALIZE_DOT:
+            switch (character)
+            {
+            case '/':
+                state = NORMALIZE_DOT_SLASHES;
+                break;
+            default:
+                COW_ADVANCE(&cow, '.');
+                COW_ADVANCE(&cow, character);
+            }
+            break;
+        case NORMALIZE_DOT_SLASHES:
+            switch (character)
+            {
+            case '\\':
+            case '/':
+                break;
+            case '.':
+                state = NORMALIZE_DOT;
+                break;
+            default:
+                COW_ADVANCE(&cow, character);
+                state = NORMALIZE_PART;
+            }
+            break;
+        }
+        cow.read_index += 1;
     }
 
-    read = _posix_normalize_dot(read);
-    if (!read)
+    // This can probably be fit into the FSA, but we need to ensure at least
+    // one leading dot is included. This case gets hit for e.g. "./.".
+    if (cow.write_index == 0 && cow.read_index > 0)
     {
-        return NULL;
+        cow.write_index = 1;
     }
 
-    return read;
+    return cow_consume(&cow);
+
+error:
+    cow_destroy(&cow);
+    return NULL;
 }
 
 PyObject *
 posix_normalize(PyObject *module, PyObject *arg)
 {
-    PyUnicodeObject *inner = _fspath(arg);
-    if (!inner)
+    PyUnicodeObject *fspath = _fspath(arg);
+    if (!fspath)
     {
         return NULL;
     }
-    return (PyObject *)_posix_normalize(inner);
+    PyUnicodeObject *normalized = _posix_normalize(fspath);
+    Py_DECREF(fspath);
+    return (PyObject *)normalized;
 }
