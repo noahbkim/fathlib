@@ -57,12 +57,6 @@ _cow_copy(PyUnicodeObject *read,
     {
         return 0;
     }
-    // else if (Py_REFCNT(read) == 1 && PyUnicode_CheckExact(read))
-    // {
-    //     *write = read;
-    //     *write_data = read_data;
-    //     return 0;
-    // }
     else
     {
         *write = (PyUnicodeObject *)PyUnicode_New(read_size, PyUnicode_MAX_CHAR_VALUE(read));
@@ -91,10 +85,6 @@ _cow_consume(PyUnicodeObject *read,
 {
     if (write)
     {
-        if (write == read)
-        {
-            Py_INCREF(read);
-        }
         if (write_size != read_size && PyUnicode_Resize((PyObject **)&write, write_size) != 0)
         {
             Py_DECREF(write);
