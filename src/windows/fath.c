@@ -31,13 +31,14 @@ PyWindowsFath_init(PyFathObject *self, PyObject *args, PyObject *kwargs)
     {
         PyObject *arg = PyTuple_GET_ITEM(args, 0);
 
-        PyUnicodeObject *path = _fspath(arg);
-        if (!path)
+        PyUnicodeObject *fspath = _fspath(arg);
+        if (!fspath)
         {
             return -1;
         }
 
-        PyUnicodeObject *normalized = _windows_normalize(path);
+        PyUnicodeObject *normalized = _windows_normalize(fspath);
+        Py_DECREF(fspath);
         if (!normalized)
         {
             return -1;
@@ -57,6 +58,7 @@ PyWindowsFath_init(PyFathObject *self, PyObject *args, PyObject *kwargs)
         }
 
         PyUnicodeObject *normalized = _windows_normalize(joined);
+        Py_DECREF(joined);
         if (!normalized)
         {
             return -1;

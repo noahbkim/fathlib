@@ -22,6 +22,7 @@ _posix_join(PyObject *items, int count)
         {
             goto error;
         }
+        Py_DECREF(PyTuple_GET_ITEM(items, i));
         PyTuple_SET_ITEM(items, i, path);
     }
 
@@ -29,10 +30,6 @@ _posix_join(PyObject *items, int count)
 
 error:
     Py_DECREF(slash);
-    for (Py_ssize_t j = 0; j < i; ++j)
-    {
-        Py_DECREF(PyTuple_GET_ITEM(items, j));
-    }
 
     return (PyUnicodeObject *)joined;
 }
