@@ -3,6 +3,7 @@
 Python's `pathlib` is slow. Let's make it faster.
 
 ```
+# Python 3.12.12
 # 14-inch, 2021 MacBook Pro with Apple M1 Pro, 32 GB RAM
 fathlib.Path() is 6.60x faster than pathlib.Path()
   pathlib.Path(): 0.37 s
