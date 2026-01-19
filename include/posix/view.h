@@ -4,6 +4,9 @@
 #define PY_SSIZE_T_CLEAN
 #include "Python.h"
 
+int _posix_is_absolute(PyUnicodeObject *arg);
+PyObject *posix_is_absolute(PyObject *module, PyObject *arg);
+
 PyUnicodeObject *_posix_root(PyUnicodeObject *arg);
 PyObject *posix_root(PyObject *module, PyObject *arg);
 

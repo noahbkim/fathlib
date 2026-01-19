@@ -4,6 +4,9 @@
 #define PY_SSIZE_T_CLEAN
 #include "Python.h"
 
+int _windows_is_absolute(PyUnicodeObject *arg);
+PyObject *windows_is_absolute(PyObject *module, PyObject *arg);
+
 PyUnicodeObject *_windows_as_posix(PyUnicodeObject *arg);
 PyObject *windows_as_posix(PyObject *module, PyObject *arg);
 

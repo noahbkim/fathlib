@@ -10,6 +10,46 @@
         goto error;                                                                                                    \
     }
 
+// MARK: Is Absolute
+
+int
+_windows_is_absolute(PyUnicodeObject *arg)
+{
+    Py_ssize_t size = PyUnicode_GET_LENGTH(arg);
+    int kind = PyUnicode_KIND(arg);
+    void *data = PyUnicode_DATA(arg);
+    if (size >= 1 && PyUnicode_READ(kind, data, 0) == '\\')
+    {
+        return 1;
+    }
+    if (size >= 2 && PyUnicode_READ(kind, data, 1) == ':')
+    {
+        return 1;
+    }
+    return 0;
+}
+
+PyObject *
+windows_is_absolute(PyObject *module, PyObject *arg)
+{
+    PyUnicodeObject *fspath = _fspath(arg);
+    if (!fspath)
+    {
+        return NULL;
+    }
+    // We don't need to normalize so long as we check `size >= 1`.
+    int is_absolute = _windows_is_absolute(fspath);
+    Py_DECREF(fspath);
+    if (is_absolute)
+    {
+        Py_RETURN_TRUE;
+    }
+    else
+    {
+        Py_RETURN_FALSE;
+    }
+}
+
 // MARK: As POSIX
 
 PyUnicodeObject *
@@ -47,6 +87,7 @@ windows_as_posix(PyObject *module, PyObject *arg)
         return NULL;
     }
     PyUnicodeObject *normalized = _windows_normalize(fspath);
+    Py_DECREF(fspath);
     if (!normalized)
     {
         return NULL;
@@ -310,17 +351,20 @@ _windows_drive(PyUnicodeObject *read)
 PyObject *
 windows_drive(PyObject *module, PyObject *arg)
 {
-    PyUnicodeObject *inner = _fspath(arg);
-    if (!inner)
+    PyUnicodeObject *fspath = _fspath(arg);
+    if (!fspath)
     {
         return NULL;
     }
-    inner = _windows_normalize(inner);
-    if (!inner)
+    PyUnicodeObject *normalized = _windows_normalize(fspath);
+    Py_DECREF(fspath);
+    if (!normalized)
     {
         return NULL;
     }
-    return (PyObject *)_windows_drive(inner);
+    PyUnicodeObject *drive = _windows_drive(normalized);
+    Py_DECREF(normalized);
+    return (PyObject *)drive;
 }
 
 // MARK: Root
@@ -354,6 +398,7 @@ windows_root(PyObject *module, PyObject *arg)
         return NULL;
     }
     PyUnicodeObject *normalized = _windows_normalize(fspath);
+    Py_DECREF(fspath);
     if (!normalized)
     {
         return NULL;
@@ -403,6 +448,7 @@ windows_name(PyObject *module, PyObject *arg)
         return NULL;
     }
     PyUnicodeObject *normalized = _windows_normalize(fspath);
+    Py_DECREF(fspath);
     if (!normalized)
     {
         return NULL;
@@ -440,11 +486,13 @@ windows_parent(PyObject *module, PyObject *arg)
         return NULL;
     }
     PyUnicodeObject *normalized = _windows_normalize(fspath);
+    Py_DECREF(fspath);
     if (!normalized)
     {
         return NULL;
     }
     Py_ssize_t parent_index = _windows_parent_index(normalized);
+    Py_DECREF(normalized);
     if (parent_index > 0)
     {
         return PyUnicode_Substring(arg, 0, parent_index);

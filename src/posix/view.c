@@ -3,6 +3,40 @@
 #include "common.h"
 #include "posix/normalize.h"
 
+// MARK: Is Absolute
+
+int
+_posix_is_absolute(PyUnicodeObject *arg)
+{
+    Py_ssize_t size = PyUnicode_GET_LENGTH(arg);
+    int kind = PyUnicode_KIND(arg);
+    void *data = PyUnicode_DATA(arg);
+    return size >= 1 && PyUnicode_READ(kind, data, 0) == '/';
+}
+
+PyObject *
+posix_is_absolute(PyObject *module, PyObject *arg)
+{
+    PyUnicodeObject *fspath = _fspath(arg);
+    if (!fspath)
+    {
+        return NULL;
+    }
+    // We don't need to normalize so long as we check `size >= 1`.
+    int is_absolute = _posix_is_absolute(fspath);
+    Py_DECREF(fspath);
+    if (is_absolute)
+    {
+        Py_RETURN_TRUE;
+    }
+    else
+    {
+        Py_RETURN_FALSE;
+    }
+}
+
+// MARK: Root
+
 PyUnicodeObject *
 _posix_root(PyUnicodeObject *arg)
 {
@@ -42,6 +76,7 @@ posix_root(PyObject *module, PyObject *arg)
         return NULL;
     }
     PyUnicodeObject *normalized = _posix_normalize(fspath);
+    Py_DECREF(fspath);
     if (!normalized)
     {
         return NULL;
@@ -50,6 +85,8 @@ posix_root(PyObject *module, PyObject *arg)
     Py_DECREF(normalized);
     return (PyObject *)root;
 }
+
+// MARK: Name
 
 PyUnicodeObject *
 _posix_name(PyUnicodeObject *arg)
@@ -87,6 +124,7 @@ posix_name(PyObject *module, PyObject *arg)
         return NULL;
     }
     PyUnicodeObject *normalized = _posix_normalize(fspath);
+    Py_DECREF(fspath);
     if (!normalized)
     {
         return NULL;
@@ -95,6 +133,8 @@ posix_name(PyObject *module, PyObject *arg)
     Py_DECREF(normalized);
     return (PyObject *)name;
 }
+
+// MARK: Parent
 
 Py_ssize_t
 _posix_parent_index(PyUnicodeObject *arg)
@@ -122,6 +162,7 @@ posix_parent(PyObject *module, PyObject *arg)
         return NULL;
     }
     PyUnicodeObject *normalized = _posix_normalize(fspath);
+    Py_DECREF(normalized);
     if (!normalized)
     {
         return NULL;
