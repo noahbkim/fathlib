@@ -91,6 +91,7 @@ PyWindowsFath_repr(PyWindowsFathObject *self)
     PyUnicodeObject *repr_inner = _windows_as_posix(self->inner);
     if (!repr_inner)
     {
+        Py_DECREF(cls_name);
         return NULL;
     }
 
@@ -153,6 +154,7 @@ PyWindowsFath_joinpath(PyWindowsFathObject *self, PyObject *args)
     PyObject *cls = PyObject_Type((PyObject *)self);
     if (!cls)
     {
+        Py_DECREF(concat);
         return NULL;
     }
 

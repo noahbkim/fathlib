@@ -7,29 +7,36 @@ PyUnicodeObject *
 _windows_join(PyObject *items, int count)
 {
     PyObject *joined = NULL;
+    PyObject *slash = NULL;
+    PyObject *fspaths = NULL;
 
-    PyObject *slash = PyUnicode_FromString("\\");
+    slash = PyUnicode_FromString("\\");
     if (!slash)
     {
-        return NULL;
+        goto error;
     }
 
-    Py_ssize_t i;
-    for (i = 0; i < count; ++i)
+    fspaths = PyTuple_New(count);
+    if (!fspaths)
     {
-        PyUnicodeObject *path = _fspath(PyTuple_GET_ITEM(items, i));
-        if (!path)
+        goto error;
+    }
+
+    for (Py_ssize_t i = 0; i < count; ++i)
+    {
+        PyUnicodeObject *fspath = _fspath(PyTuple_GET_ITEM(items, i));
+        if (!fspath)
         {
             goto error;
         }
-        Py_DECREF(PyTuple_GET_ITEM(items, i));
-        PyTuple_SET_ITEM(items, i, path);
+        PyTuple_SET_ITEM(fspaths, i, fspath);
     }
 
-    joined = PyUnicode_Join(slash, items);
+    joined = PyUnicode_Join(slash, fspaths);
 
 error:
     Py_DECREF(slash);
+    Py_XDECREF(fspaths);
 
     return (PyUnicodeObject *)joined;
 }

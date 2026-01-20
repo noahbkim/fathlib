@@ -125,6 +125,7 @@ PyPosixFath_joinpath(PyPosixFathObject *self, PyObject *args)
     PyObject *cls = PyObject_Type((PyObject *)self);
     if (!cls)
     {
+        Py_DECREF(concat);
         return NULL;
     }
 
