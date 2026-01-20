@@ -133,6 +133,7 @@ _posix_normalize(PyUnicodeObject *read)
             default:
                 COW_ADVANCE(&cow, '.');
                 COW_ADVANCE(&cow, character);
+                state = NORMALIZE_PART;
             }
             break;
         case NORMALIZE_DOT_SLASHES:
