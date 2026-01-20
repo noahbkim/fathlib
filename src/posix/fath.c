@@ -53,7 +53,7 @@ PyPosixFath_init(PyFathObject *self, PyObject *args, PyObject *kwargs)
     // Join the `__fspath__` of multiple arguments.
     else
     {
-        PyUnicodeObject *joined = _posix_join(args, nargs);
+        PyUnicodeObject *joined = _posix_join(((PyTupleObject *)args)->ob_item, nargs);
         if (!joined)
         {
             return -1;

@@ -1,56 +1,47 @@
 #include "posix/join.h"
+
 #include "common.h"
+#include "posix/normalize.h"
 
 // MARK: POSIX
 
 PyUnicodeObject *
-_posix_join(PyObject *items, int count)
+_posix_join(PyObject **args, Py_ssize_t nargs)
 {
-    PyObject *joined = NULL;
-    PyObject *slash = NULL;
-    PyObject *fspaths = NULL;
+    PyUnicodeObject *joined = NULL;
+    PyUnicodeObject **fspaths = malloc(sizeof(PyUnicodeObject *) * nargs);
 
-    slash = PyUnicode_FromString("/");
-    if (!slash)
+    for (Py_ssize_t i = 0; i < nargs; ++i)
     {
-        goto error;
-    }
-
-    fspaths = PyTuple_New(count);
-    if (!fspaths)
-    {
-        goto error;
-    }
-
-    for (Py_ssize_t i = 0; i < count; ++i)
-    {
-        PyUnicodeObject *fspath = _fspath(PyTuple_GET_ITEM(items, i));
+        PyUnicodeObject *fspath = _fspath((PyObject *)args[i]);
         if (!fspath)
         {
             goto error;
         }
-        PyTuple_SET_ITEM(fspaths, i, fspath);
+        fspaths[i] = fspath;
     }
 
-    joined = PyUnicode_Join(slash, fspaths);
+    joined = _join('/', fspaths, nargs);
 
 error:
-    Py_DECREF(slash);
-    Py_XDECREF(fspaths);
-
-    return (PyUnicodeObject *)joined;
+    free(fspaths);
+    return joined;
 }
 
 PyObject *
-posix_join(PyObject *module, PyObject *items)
+posix_join(PyObject *module, PyObject **args, Py_ssize_t nargs)
 {
-    Py_ssize_t count = PyTuple_GET_SIZE(items);
-    if (count == 0)
+    if (nargs == 0)
     {
         return PyUnicode_FromStringAndSize(".", 1);
     }
     else
     {
-        return (PyObject *)_posix_join(items, count);
+        PyUnicodeObject *joined = _posix_join(args, nargs);
+        if (!joined)
+        {
+            return NULL;
+        }
+        return (PyObject *)_posix_normalize(joined);
     }
 }
