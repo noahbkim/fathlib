@@ -53,13 +53,17 @@ data accesses.
 To build and install the extension after making changes, run the following:
 
 ```
-uv build . && uv pip install .
+uv build . && uv pip install -e .
 ```
 
-For whatever reason, editable installation (using `uv pip install -e .`)
-doesn't work with the extension; changes in the C source will not be reflected
-at runtime after running `uv build .` alone. Please let me know if I'm doing
-something wrong.
+For whatever reason, it is not sufficient to only rebuild after setting up the
+editable install; changes in the C source will not be reflected at runtime and I
+don't know why. Please let me know if I'm doing something wrong.
+
+It doesn't seem like there's explicit support for building extensions in debug
+mode with `uv` and the `setuptools` build backend, but I've found that
+temporarily adding `"-g", "-O0", "-UNDEBUG"` to `extra-compile-args` in the
+`tool.setuptools.ext-modules` of the `pyproject.toml` gets you halfway there.
 
 To run tests:
 
@@ -77,12 +81,12 @@ uv run test/benchmark.py
 
 The following is a rough roadmap for this repository:
 
-  - [x] Skeleton
-  - [x] Normalization
-  - [ ] Join (need to use `METH_FASTCALL` and fix root parts)
-  - [ ] Simple properties (in progress)
-  - [ ] Parts
-  - [ ] File system methods
-  - [ ] Trivia
-  - [ ] 3.12 test suite
-  - [ ] >3.12 test suites
+- [x] Skeleton
+- [x] Normalization
+- [ ] Join (need to use `METH_FASTCALL` and fix root parts)
+- [ ] Simple properties (in progress)
+- [ ] Parts
+- [ ] File system methods
+- [ ] Trivia
+- [ ] 3.12 test suite
+- [ ] > 3.12 test suites
