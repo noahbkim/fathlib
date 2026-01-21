@@ -7,4 +7,7 @@
 PyUnicodeObject *_posix_join(PyObject **args, Py_ssize_t nargs);
 PyObject *posix_join(PyObject *module, PyObject **args, Py_ssize_t nargs);
 
+PyUnicodeObject *_posix_concat(PyObject **args, Py_ssize_t nargs);
+PyObject *posix_concat(PyObject *module, PyObject **args, Py_ssize_t nargs);
+
 #endif

@@ -53,7 +53,7 @@ PyWindowsFath_init(PyFathObject *self, PyObject *args, PyObject *kwargs)
     // Join the `__fspath__` of multiple arguments.
     else
     {
-        PyUnicodeObject *joined = _windows_join(args, nargs);
+        PyUnicodeObject *joined = _windows_join(((PyTupleObject *)args)->ob_item, nargs);
         if (!joined)
         {
             return -1;
@@ -135,32 +135,31 @@ PyWindowsFath_as_posix(PyWindowsFathObject *self)
 PyObject *
 PyWindowsFath_joinpath(PyWindowsFathObject *self, PyObject *args)
 {
-    Py_ssize_t count = PyTuple_GET_SIZE(args);
-    PyObject *concat = PyTuple_New(count + 1);
-    if (!concat)
+    Py_ssize_t nargs = PyTuple_GET_SIZE(args);
+    PyObject **concat = malloc(sizeof(PyObject *) * (nargs + 1));
+    concat[0] = (PyObject *)self->inner;
+    for (Py_ssize_t i = 0; i < PyTuple_GET_SIZE(args); ++i)
     {
-        return NULL;
+        concat[i + 1] = PyTuple_GET_ITEM(args, i);
     }
 
-    Py_INCREF(self->inner);
-    PyTuple_SET_ITEM(concat, 0, self->inner);
-    for (Py_ssize_t i = 0; i < count; ++i)
+    PyUnicodeObject *arg = _windows_join(concat, nargs + 1);
+    free(concat);
+    if (arg == NULL)
     {
-        PyObject *arg = PyTuple_GET_ITEM(args, i);
-        Py_INCREF(arg);
-        PyTuple_SET_ITEM(concat, i + 1, arg);
+        return NULL;
     }
 
     PyObject *cls = PyObject_Type((PyObject *)self);
     if (!cls)
     {
-        Py_DECREF(concat);
+        Py_DECREF(arg);
         return NULL;
     }
 
-    PyObject *joined = PyObject_Call(cls, concat, NULL);
+    PyObject *joined = PyObject_CallOneArg(cls, (PyObject *)arg);
     Py_DECREF(cls);
-    Py_DECREF(concat);
+    Py_DECREF(arg);
     if (!joined)
     {
         return NULL;
