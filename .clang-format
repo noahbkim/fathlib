@@ -12,6 +12,8 @@ BinPackParameters: false
 BreakAfterReturnType: TopLevelDefinitions
 BreakBeforeBraces: Custom
 BreakBeforeTernaryOperators: true
+BreakBeforeBinaryOperators: true
+BreakBinaryOperations: RespectPrecedence
 BraceWrapping:
   AfterCaseLabel: true
   AfterClass: true

@@ -128,7 +128,7 @@ class TestConformance(unittest.TestCase):
             (fathlib.PurePosixPath, pathlib.PurePosixPath),
             (fathlib.PureWindowsPath, pathlib.PureWindowsPath),
         ):
-            for n in 0, 1:  # , 2:
+            for n in 0, 1, 2:
                 for args in itertools.permutations(ARGS, n):
                     p_repr = f"{p_type.__name__}{args!r}"
                     q_repr = f"{q_type.__name__}{args!r}"

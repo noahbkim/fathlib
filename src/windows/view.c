@@ -2,6 +2,7 @@
 
 #include "common.h"
 #include "cow.h"
+#include "windows/drive.h"
 #include "windows/normalize.h"
 
 #define COW_ADVANCE(SELF, READ)                                                                                        \
@@ -18,9 +19,10 @@ _windows_is_absolute(PyUnicodeObject *arg)
     Py_ssize_t size = PyUnicode_GET_LENGTH(arg);
     int kind = PyUnicode_KIND(arg);
     void *data = PyUnicode_DATA(arg);
-    if (size >= 1 && PyUnicode_READ(kind, data, 0) == '\\')
+    if (size >= 1)
     {
-        return 1;
+        Py_UCS4 first = PyUnicode_READ(kind, data, 0);
+        return first == '\\' || first == '/';
     }
     if (size >= 3 && PyUnicode_READ(kind, data, 1) == ':')
     {
@@ -98,248 +100,22 @@ windows_as_posix(PyObject *module, PyObject *arg)
     return (PyObject *)as_posix;
 }
 
-// MARK: UNC
-
-// \\server\share
-// \\?\UNC\server\share
-// \\.\device
-// \\?\device
-typedef enum
-{
-    UNC_INDEX_START,
-    UNC_INDEX_START_SLASH,
-    UNC_INDEX_START_SLASH_SLASH,
-    UNC_INDEX_START_SLASH_SLASH_SLASH,
-    UNC_INDEX_START_SLASH_SLASH_QUESTION,
-    UNC_INDEX_START_SLASH_SLASH_QUESTION_SLASH,
-    UNC_INDEX_START_SLASH_SLASH_DOT,
-    UNC_INDEX_U,
-    UNC_INDEX_UN,
-    UNC_INDEX_UNC,
-    UNC_INDEX_UNC_SLASH,
-    UNC_INDEX_SERVER,
-    UNC_INDEX_SERVER_SLASH,
-    UNC_INDEX_SERVER_SLASH_SLASH,
-    UNC_INDEX_SHARE, // doubles as device
-} UncIndex;
-
-Py_ssize_t
-_windows_unc_index(Py_ssize_t length, unsigned int kind, void *data)
-{
-    Py_ssize_t read_index = 0;
-    Py_ssize_t unc_index = 0;
-    UncIndex state = UNC_INDEX_START;
-    while (read_index < length)
-    {
-        Py_UCS4 character = PyUnicode_READ(kind, data, read_index);
-        switch (state)
-        {
-        case UNC_INDEX_START:
-            if (character == '\\')
-            {
-                unc_index += 1;
-                state = UNC_INDEX_START_SLASH;
-            }
-            else
-            {
-                return 0;
-            }
-            break;
-        case UNC_INDEX_START_SLASH:
-            if (character == '\\')
-            {
-                unc_index += 1;
-                state = UNC_INDEX_START_SLASH_SLASH;
-            }
-            else
-            {
-                return 0;
-            }
-            break;
-        case UNC_INDEX_START_SLASH_SLASH:
-            switch (character)
-            {
-            case '\\':
-                unc_index += 1;
-                state = UNC_INDEX_START_SLASH_SLASH_SLASH;
-                break;
-            case '?':
-                unc_index += 1;
-                state = UNC_INDEX_START_SLASH_SLASH_QUESTION;
-                break;
-            case '.':
-                unc_index += 1;
-                state = UNC_INDEX_START_SLASH_SLASH_DOT;
-                break;
-            default:
-                unc_index += 1;
-                state = UNC_INDEX_SERVER;
-                break;
-            }
-            break;
-        case UNC_INDEX_START_SLASH_SLASH_SLASH:
-            if (character == '\\')
-            {
-                return unc_index;
-            }
-            else
-            {
-                unc_index += 1;
-                state = UNC_INDEX_SHARE;
-            }
-            break;
-        case UNC_INDEX_START_SLASH_SLASH_QUESTION:
-            if (character == '\\')
-            {
-                unc_index += 1;
-                state = UNC_INDEX_START_SLASH_SLASH_QUESTION_SLASH;
-            }
-            else
-            {
-                unc_index += 1;
-                state = UNC_INDEX_SHARE;
-            }
-            break;
-        case UNC_INDEX_START_SLASH_SLASH_QUESTION_SLASH:
-            switch (character)
-            {
-            case '\\':
-                return unc_index;
-            case 'u':
-            case 'U':
-                unc_index += 1;
-                state = UNC_INDEX_U;
-                break;
-            default:
-                unc_index += 1;
-                state = UNC_INDEX_SHARE;
-                break;
-            }
-            break;
-        case UNC_INDEX_START_SLASH_SLASH_DOT:
-            unc_index += 1;
-            state = UNC_INDEX_SHARE;
-            break;
-        case UNC_INDEX_U:
-            switch (character)
-            {
-            case 'n':
-            case 'N':
-                unc_index += 1;
-                state = UNC_INDEX_UN;
-                break;
-            case '\\':
-                return unc_index;
-            default:
-                unc_index += 1;
-                state = UNC_INDEX_SHARE;
-                break;
-            }
-            break;
-        case UNC_INDEX_UN:
-            switch (character)
-            {
-            case 'c':
-            case 'C':
-                unc_index += 1;
-                state = UNC_INDEX_UNC;
-                break;
-            case '\\':
-                return unc_index;
-            default:
-                unc_index += 1;
-                state = UNC_INDEX_SHARE;
-                break;
-            }
-            break;
-        case UNC_INDEX_UNC:
-            if (character == '\\')
-            {
-                unc_index += 1;
-                state = UNC_INDEX_UNC_SLASH;
-            }
-            else
-            {
-                unc_index += 1;
-                state = UNC_INDEX_SHARE;
-            }
-            break;
-        case UNC_INDEX_UNC_SLASH:
-            if (character == '\\')
-            {
-                return unc_index;
-            }
-            else
-            {
-                unc_index += 1;
-                state = UNC_INDEX_SERVER;
-            }
-            break;
-        case UNC_INDEX_SERVER:
-            if (character == '\\')
-            {
-                unc_index += 1;
-                state = UNC_INDEX_SERVER_SLASH;
-            }
-            else
-            {
-                unc_index += 1;
-            }
-            break;
-        case UNC_INDEX_SERVER_SLASH:
-            if (character == '\\')
-            {
-                unc_index += 1;
-                state = UNC_INDEX_SERVER_SLASH_SLASH;
-            }
-            else
-            {
-                unc_index += 1;
-                state = UNC_INDEX_SHARE;
-            }
-            break;
-        case UNC_INDEX_SERVER_SLASH_SLASH:
-            if (character == '\\')
-            {
-                return unc_index;
-            }
-            else
-            {
-                unc_index += 1;
-                state = UNC_INDEX_SHARE;
-            }
-            break;
-        case UNC_INDEX_SHARE:
-            if (character == '\\')
-            {
-                return unc_index;
-            }
-            else
-            {
-                unc_index += 1;
-            }
-            break;
-        }
-        read_index += 1;
-    }
-    return unc_index;
-}
-
 // MARK: Drive
 
 PyUnicodeObject *
 _windows_drive(PyUnicodeObject *read)
 {
-    Py_ssize_t length = PyUnicode_GET_LENGTH(read);
-    int kind = PyUnicode_KIND(read);
-    void *data = PyUnicode_DATA(read);
+    Py_ssize_t read_size = PyUnicode_GET_LENGTH(read);
+    int read_kind = PyUnicode_KIND(read);
+    void *read_data = PyUnicode_DATA(read);
 
-    if (length >= 1 && PyUnicode_READ(kind, data, 0) == '\\')
+    Py_ssize_t unc_index = _windows_unc_index_impl(read_size, read_kind, read_data);
+    if (unc_index != 0)
     {
-        Py_ssize_t unc_index = _windows_unc_index(length, kind, data);
         return (PyUnicodeObject *)PyUnicode_Substring((PyObject *)read, 0, unc_index);
     }
-    else if (length >= 2 && PyUnicode_READ(kind, data, 1) == ':')
+
+    if (read_size >= 3 && PyUnicode_READ(read_kind, read_data, 1) == ':')
     {
         return (PyUnicodeObject *)PyUnicode_Substring((PyObject *)read, 0, 2);
     }
@@ -414,15 +190,15 @@ windows_root(PyObject *module, PyObject *arg)
 PyUnicodeObject *
 _windows_name(PyUnicodeObject *arg)
 {
-    Py_ssize_t length = PyUnicode_GET_LENGTH(arg);
-    int kind = PyUnicode_KIND(arg);
-    void *data = PyUnicode_DATA(arg);
+    Py_ssize_t arg_size = PyUnicode_GET_LENGTH(arg);
+    unsigned int arg_kind = PyUnicode_KIND(arg);
+    void *arg_data = PyUnicode_DATA(arg);
 
-    Py_ssize_t unc_index = _windows_unc_index(length, kind, data);
-    Py_ssize_t i = length - 1;
+    Py_ssize_t unc_index = _windows_unc_index_impl(arg_size, arg_kind, arg_data);
+    Py_ssize_t i = arg_size - 1;
 
     // Read until the next slash or the start of the string.
-    while (i >= unc_index && PyUnicode_READ(kind, data, i) != '\\')
+    while (i >= unc_index && PyUnicode_READ(arg_kind, arg_data, i) != '\\')
     {
         i -= 1;
     }
@@ -436,7 +212,7 @@ _windows_name(PyUnicodeObject *arg)
     else
     {
         Py_ssize_t start = i + 1;
-        return (PyUnicodeObject *)PyUnicode_Substring((PyObject *)arg, start, length);
+        return (PyUnicodeObject *)PyUnicode_Substring((PyObject *)arg, start, arg_size);
     }
 }
 
@@ -464,13 +240,13 @@ windows_name(PyObject *module, PyObject *arg)
 Py_ssize_t
 _windows_parent_index(PyUnicodeObject *arg)
 {
-    Py_ssize_t length = PyUnicode_GET_LENGTH(arg);
-    int kind = PyUnicode_KIND(arg);
-    void *data = PyUnicode_DATA(arg);
+    Py_ssize_t arg_size = PyUnicode_GET_LENGTH(arg);
+    unsigned int arg_kind = PyUnicode_KIND(arg);
+    void *arg_data = PyUnicode_DATA(arg);
 
-    Py_ssize_t unc_index = _windows_unc_index(length, kind, data);
-    Py_ssize_t i = length;
-    while (i > unc_index && PyUnicode_READ(kind, data, i - 1) != '\\')
+    Py_ssize_t unc_index = _windows_unc_index_impl(arg_size, arg_kind, arg_data);
+    Py_ssize_t i = arg_size;
+    while (i > unc_index && PyUnicode_READ(arg_kind, arg_data, i - 1) != '\\')
     {
         i -= 1;
     }
