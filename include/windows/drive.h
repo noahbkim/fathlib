@@ -4,19 +4,32 @@
 #define PY_SSIZE_T_CLEAN
 #include "Python.h"
 
-Py_ssize_t _windows_unc_index_impl(Py_ssize_t arg_size, unsigned int arg_kind, void *arg_data);
-Py_ssize_t _windows_unc_index(PyUnicodeObject *arg);
-PyObject *windows_is_unc(PyObject *module, PyObject *arg);
-PyObject *windows_unc(PyObject *module, PyObject *arg);
+typedef enum
+{
+    WINDOWS_DRIVE_NONE,
+    WINDOWS_DRIVE_VOLUME,
+    WINDOWS_DRIVE_UNC,
+    WINDOWS_DRIVE_DEVICE_LITERAL,
+    WINDOWS_DRIVE_DEVICE_NORMALIZED,
+    WINDOWS_DRIVE_DEVICE_UNC,
+} WindowsDriveKind;
 
-Py_ssize_t _windows_volume_index_impl(Py_ssize_t arg_size, unsigned int arg_kind, void *arg_data);
-Py_ssize_t _windows_volume_index(PyUnicodeObject *arg);
-PyObject *windows_is_volume(PyObject *module, PyObject *arg);
-PyObject *windows_volume(PyObject *module, PyObject *arg);
+typedef struct
+{
+    WindowsDriveKind kind;
+    Py_ssize_t index;
+} WindowsDriveKindAndIndex;
 
-Py_ssize_t _windows_device_index_impl(Py_ssize_t arg_size, unsigned int arg_kind, void *arg_data);
-Py_ssize_t _windows_device_index(PyUnicodeObject *arg);
-PyObject *windows_is_device(PyObject *module, PyObject *arg);
-PyObject *windows_device(PyObject *module, PyObject *arg);
+WindowsDriveKindAndIndex _windows_drive_kind_and_index_impl(Py_ssize_t arg_size, unsigned int arg_kind, void *arg_data);
+WindowsDriveKindAndIndex _windows_drive_kind_and_index(PyUnicodeObject *arg);
+WindowsDriveKind _windows_drive_kind(PyUnicodeObject *arg);
+Py_ssize_t _windows_drive_index(PyUnicodeObject *arg);
+
+PyObject *windows_drive(PyObject *arg);
+PyObject *windows_is_volume(PyObject *arg);
+PyObject *windows_is_unc(PyObject *arg);
+PyObject *windows_is_device_literal(PyObject *arg);
+PyObject *windows_is_device_normalized(PyObject *arg);
+PyObject *windows_is_device_unc(PyObject *arg);
 
 #endif
