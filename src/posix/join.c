@@ -9,24 +9,49 @@
 PyUnicodeObject *
 _posix_join(PyObject **args, Py_ssize_t nargs)
 {
-    PyUnicodeObject *joined = NULL;
-    PyUnicodeObject **fspaths = malloc(sizeof(PyUnicodeObject *) * nargs);
-
-    for (Py_ssize_t i = 0; i < nargs; ++i)
+    if (nargs == 0)
     {
-        PyUnicodeObject *fspath = _fspath((PyObject *)args[i]);
+        return (PyUnicodeObject *)PyUnicode_FromString(".");
+    }
+    else if (nargs == 1)
+    {
+        PyUnicodeObject *fspath = _fspath(args[0]);
         if (!fspath)
         {
-            goto error;
+            return NULL;
         }
-        fspaths[i] = fspath;
+        PyUnicodeObject *normalized = _posix_normalize(fspath);
+        Py_DECREF(fspath);
+        return normalized;
     }
+    else
+    {
+        PyUnicodeObject *joined = NULL;
+        PyUnicodeObject **fspaths = malloc(sizeof(PyUnicodeObject *) * nargs);
+        Py_ssize_t i = nargs;
+        do
+        {
+            i -= 1;
+            PyUnicodeObject *fspath = _fspath((PyObject *)args[i]);
+            if (!fspath)
+            {
+                goto error;
+            }
+            fspaths[i] = fspath;
+            if (_posix_is_absolute(fspath))
+            {
+                break;
+            }
+        }
+        while (i > 0);
 
-    joined = _join('/', fspaths, nargs);
+        joined = _join('/', fspaths + i, nargs - i);
 
 error:
-    free(fspaths);
-    return joined;
+        // todo decref fspaths
+        free(fspaths);
+        return joined;
+    }
 }
 
 PyObject *
@@ -54,24 +79,42 @@ posix_join(PyObject *module, PyObject **args, Py_ssize_t nargs)
 PyUnicodeObject *
 _posix_concat(PyObject **args, Py_ssize_t nargs)
 {
-    PyUnicodeObject *joined = NULL;
-    PyUnicodeObject **fspaths = malloc(sizeof(PyUnicodeObject *) * nargs);
-
-    for (Py_ssize_t i = 0; i < nargs; ++i)
+    if (nargs == 0)
     {
-        PyUnicodeObject *fspath = _fspath((PyObject *)args[i]);
+        return (PyUnicodeObject *)PyUnicode_FromString(".");
+    }
+    else if (nargs == 1)
+    {
+        PyUnicodeObject *fspath = _fspath(args[0]);
         if (!fspath)
         {
-            goto error;
+            return NULL;
         }
-        fspaths[i] = fspath;
+        PyUnicodeObject *normalized = _posix_normalize(fspath);
+        Py_DECREF(fspath);
+        return normalized;
     }
+    else
+    {
+        PyUnicodeObject *joined = NULL;
+        PyUnicodeObject **fspaths = malloc(sizeof(PyUnicodeObject *) * nargs);
 
-    joined = _join('/', fspaths, nargs);
+        for (Py_ssize_t i = 0; i < nargs; ++i)
+        {
+            PyUnicodeObject *fspath = _fspath((PyObject *)args[i]);
+            if (!fspath)
+            {
+                goto error;
+            }
+            fspaths[i] = fspath;
+        }
+
+        joined = _join('/', fspaths, nargs);
 
 error:
-    free(fspaths);
-    return joined;
+        free(fspaths);
+        return joined;
+    }
 }
 
 PyObject *
