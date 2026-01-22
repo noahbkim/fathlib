@@ -28,6 +28,12 @@ typedef struct
 /// with a divergent character.
 void cow_construct(Cow *self, PyUnicodeObject *read);
 
+/// Assign a `Cow` with a pre-allocated write buffer.
+///
+/// Steals `write`. All pointers and values pertaining to `read` are zeroed and
+/// will not be accessed by subsequent operations.
+void cow_construct_writer(Cow *self, PyUnicodeObject *write);
+
 /// Manually force the `Cow` to construct `write`.
 ///
 /// In addition to allocating a `write` string with the same length as `read`

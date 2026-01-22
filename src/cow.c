@@ -14,6 +14,16 @@ cow_construct(Cow *self, PyUnicodeObject *read)
     self->write_index = 0;
 }
 
+void
+cow_construct_writer(Cow *self, PyUnicodeObject *write)
+{
+    self->write = write;
+    self->write_size = PyUnicode_GET_LENGTH(write);
+    self->write_kind = PyUnicode_KIND(write);
+    self->write_data = PyUnicode_DATA(write);
+    self->write_index = 0;
+}
+
 int
 cow_copy(Cow *self, Py_ssize_t resize)
 {

@@ -9,17 +9,130 @@
         goto error;                                                                                                    \
     }
 
-typedef enum
+int
+_posix_normalize_impl(Cow *cow, PosixNormalize *state, PyUnicodeObject *read)
 {
-    NORMALIZE_START,
-    NORMALIZE_START_SLASH,
-    NORMALIZE_START_SLASH_SLASH,
-    NORMALIZE_START_SLASH_SLASH_SLASHES,
-    NORMALIZE_PART,
-    NORMALIZE_PART_SLASHES,
-    NORMALIZE_DOT,
-    NORMALIZE_DOT_SLASHES,
-} NormalizeSlash;
+    for (Py_ssize_t read_index = 0; read_index < cow->read_size; ++read_index)
+    {
+        Py_UCS4 character = PyUnicode_READ(cow->read_kind, cow->read_data, read_index);
+        switch (*state)
+        {
+        case POSIX_NORMALIZE_START:
+            switch (character)
+            {
+            case '/':
+                COW_ADVANCE(cow, '/');
+                *state = POSIX_NORMALIZE_START_SLASH;
+                break;
+            case '.':
+                *state = POSIX_NORMALIZE_DOT;
+                break;
+            default:
+                COW_ADVANCE(cow, character);
+                *state = POSIX_NORMALIZE_PART;
+            }
+            break;
+        case POSIX_NORMALIZE_START_SLASH:
+            switch (character)
+            {
+            case '/':
+                cow->write_index += 1; // Include the double slash if we stop
+                *state = POSIX_NORMALIZE_START_SLASH_SLASH;
+                break;
+            case '.':
+                *state = POSIX_NORMALIZE_DOT;
+                break;
+            default:
+                COW_ADVANCE(cow, character);
+                *state = POSIX_NORMALIZE_PART;
+            }
+            break;
+        case POSIX_NORMALIZE_START_SLASH_SLASH:
+            switch (character)
+            {
+            case '/':
+                *state = POSIX_NORMALIZE_START_SLASH_SLASH_SLASHES;
+                cow->write_index -= 1; // Remove the slash if we have more
+                break;
+            case '.':
+                *state = POSIX_NORMALIZE_DOT;
+                break;
+            default:
+                COW_ADVANCE(cow, character);
+                *state = POSIX_NORMALIZE_PART;
+            }
+            break;
+        case POSIX_NORMALIZE_START_SLASH_SLASH_SLASHES:
+            switch (character)
+            {
+            case '/':
+                break;
+            case '.':
+                *state = POSIX_NORMALIZE_DOT;
+                break;
+            default:
+                COW_ADVANCE(cow, character);
+                *state = POSIX_NORMALIZE_PART;
+            }
+            break;
+        case POSIX_NORMALIZE_PART:
+            switch (character)
+            {
+            case '/':
+                *state = POSIX_NORMALIZE_PART_SLASHES;
+                break;
+            default:
+                COW_ADVANCE(cow, character);
+            }
+            break;
+        case POSIX_NORMALIZE_PART_SLASHES:
+            switch (character)
+            {
+            case '/':
+                break;
+            case '.':
+                *state = POSIX_NORMALIZE_DOT;
+                break;
+            default:
+                COW_ADVANCE(cow, '/');
+                COW_ADVANCE(cow, character);
+                *state = POSIX_NORMALIZE_PART;
+            }
+            break;
+        case POSIX_NORMALIZE_DOT:
+            switch (character)
+            {
+            case '/':
+                *state = POSIX_NORMALIZE_DOT_SLASHES;
+                break;
+            default:
+                COW_ADVANCE(cow, '.');
+                COW_ADVANCE(cow, character);
+                *state = POSIX_NORMALIZE_PART;
+            }
+            break;
+        case POSIX_NORMALIZE_DOT_SLASHES:
+            switch (character)
+            {
+            case '\\':
+            case '/':
+                break;
+            case '.':
+                *state = POSIX_NORMALIZE_DOT;
+                break;
+            default:
+                COW_ADVANCE(cow, character);
+                *state = POSIX_NORMALIZE_PART;
+            }
+            break;
+        }
+    }
+
+    return 0;
+
+error:
+    return -1;
+}
 
 PyUnicodeObject *
 _posix_normalize(PyUnicodeObject *read)
@@ -35,122 +148,12 @@ _posix_normalize(PyUnicodeObject *read)
 
     Cow cow;
     cow_construct(&cow, read);
+    PosixNormalize state;
 
-    NormalizeSlash state = NORMALIZE_START;
-    for (Py_ssize_t read_index = 0; read_index < cow.read_size; ++read_index)
+    if (_posix_normalize_impl(&cow, &state, read) != 0)
     {
-        Py_UCS4 character = PyUnicode_READ(cow.read_kind, cow.read_data, read_index);
-        switch (state)
-        {
-        case NORMALIZE_START:
-            switch (character)
-            {
-            case '/':
-                COW_ADVANCE(&cow, '/');
-                state = NORMALIZE_START_SLASH;
-                break;
-            case '.':
-                state = NORMALIZE_DOT;
-                break;
-            default:
-                COW_ADVANCE(&cow, character);
-                state = NORMALIZE_PART;
-            }
-            break;
-        case NORMALIZE_START_SLASH:
-            switch (character)
-            {
-            case '/':
-                cow.write_index += 1; // Include the double slash if we stop
-                state = NORMALIZE_START_SLASH_SLASH;
-                break;
-            case '.':
-                state = NORMALIZE_DOT;
-                break;
-            default:
-                COW_ADVANCE(&cow, character);
-                state = NORMALIZE_PART;
-            }
-            break;
-        case NORMALIZE_START_SLASH_SLASH:
-            switch (character)
-            {
-            case '/':
-                state = NORMALIZE_START_SLASH_SLASH_SLASHES;
-                cow.write_index -= 1; // Remove the slash if we have more
-                break;
-            case '.':
-                state = NORMALIZE_DOT;
-                break;
-            default:
-                COW_ADVANCE(&cow, character);
-                state = NORMALIZE_PART;
-            }
-            break;
-        case NORMALIZE_START_SLASH_SLASH_SLASHES:
-            switch (character)
-            {
-            case '/':
-                break;
-            case '.':
-                state = NORMALIZE_DOT;
-                break;
-            default:
-                COW_ADVANCE(&cow, character);
-                state = NORMALIZE_PART;
-            }
-            break;
-        case NORMALIZE_PART:
-            switch (character)
-            {
-            case '/':
-                state = NORMALIZE_PART_SLASHES;
-                break;
-            default:
-                COW_ADVANCE(&cow, character);
-            }
-            break;
-        case NORMALIZE_PART_SLASHES:
-            switch (character)
-            {
-            case '/':
-                break;
-            case '.':
-                state = NORMALIZE_DOT;
-                break;
-            default:
-                COW_ADVANCE(&cow, '/');
-                COW_ADVANCE(&cow, character);
-                state = NORMALIZE_PART;
-            }
-            break;
-        case NORMALIZE_DOT:
-            switch (character)
-            {
-            case '/':
-                state = NORMALIZE_DOT_SLASHES;
-                break;
-            default:
-                COW_ADVANCE(&cow, '.');
-                COW_ADVANCE(&cow, character);
-                state = NORMALIZE_PART;
-            }
-            break;
-        case NORMALIZE_DOT_SLASHES:
-            switch (character)
-            {
-            case '\\':
-            case '/':
-                break;
-            case '.':
-                state = NORMALIZE_DOT;
-                break;
-            default:
-                COW_ADVANCE(&cow, character);
-                state = NORMALIZE_PART;
-            }
-            break;
-        }
+        cow_destroy(&cow);
+        return NULL;
     }
 
     // This can probably be fit into the FSA, but we need to ensure at least
@@ -161,10 +164,6 @@ _posix_normalize(PyUnicodeObject *read)
     }
 
     return cow_consume(&cow);
-
-error:
-    cow_destroy(&cow);
-    return NULL;
 }
 
 PyObject *
