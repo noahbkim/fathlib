@@ -22,9 +22,10 @@ _windows_is_absolute(PyUnicodeObject *arg)
     {
         return 1;
     }
-    if (size >= 2 && PyUnicode_READ(kind, data, 1) == ':')
+    if (size >= 3 && PyUnicode_READ(kind, data, 1) == ':')
     {
-        return 1;
+        Py_UCS4 third = PyUnicodeRead(kind, data, 2);
+        return third == '\\' || third == '/';
     }
     return 0;
 }
