@@ -16,20 +16,23 @@
 int
 _windows_is_absolute(PyUnicodeObject *arg)
 {
-    Py_ssize_t size = PyUnicode_GET_LENGTH(arg);
-    int kind = PyUnicode_KIND(arg);
-    void *data = PyUnicode_DATA(arg);
-    if (size >= 1)
+    Py_ssize_t arg_size = PyUnicode_GET_LENGTH(arg);
+    int arg_kind = PyUnicode_KIND(arg);
+    void *arg_data = PyUnicode_DATA(arg);
+    WindowsDriveKindAndIndex drive = _windows_drive_kind_and_index_impl(arg_size, arg_kind, arg_data);
+    if (drive.index == 0)
     {
-        Py_UCS4 first = PyUnicode_READ(kind, data, 0);
-        return first == '\\' || first == '/';
+        return 0;
     }
-    if (size >= 3 && PyUnicode_READ(kind, data, 1) == ':')
+    else if (drive.index == arg_size)
     {
-        Py_UCS4 third = PyUnicode_READ(kind, data, 2);
-        return third == '\\' || third == '/';
+        return drive.kind != WINDOWS_DRIVE_VOLUME;
     }
-    return 0;
+    else
+    {
+        Py_UCS4 character = PyUnicode_READ(arg_kind, arg_data, drive.index);
+        return character == '\\' || character == '/';
+    }
 }
 
 PyObject *
@@ -43,14 +46,7 @@ windows_is_absolute(PyObject *module, PyObject *arg)
     // We don't need to normalize so long as we check `size >= 1`.
     int is_absolute = _windows_is_absolute(fspath);
     Py_DECREF(fspath);
-    if (is_absolute)
-    {
-        Py_RETURN_TRUE;
-    }
-    else
-    {
-        Py_RETURN_FALSE;
-    }
+    return PyBool_FromLong(is_absolute);
 }
 
 // MARK: As POSIX
@@ -98,50 +94,6 @@ windows_as_posix(PyObject *module, PyObject *arg)
     PyUnicodeObject *as_posix = _windows_as_posix(normalized);
     Py_DECREF(normalized);
     return (PyObject *)as_posix;
-}
-
-// MARK: Drive
-
-PyUnicodeObject *
-_windows_drive(PyUnicodeObject *read)
-{
-    Py_ssize_t read_size = PyUnicode_GET_LENGTH(read);
-    int read_kind = PyUnicode_KIND(read);
-    void *read_data = PyUnicode_DATA(read);
-
-    Py_ssize_t unc_index = _windows_unc_index_impl(read_size, read_kind, read_data);
-    if (unc_index != 0)
-    {
-        return (PyUnicodeObject *)PyUnicode_Substring((PyObject *)read, 0, unc_index);
-    }
-
-    if (read_size >= 3 && PyUnicode_READ(read_kind, read_data, 1) == ':')
-    {
-        return (PyUnicodeObject *)PyUnicode_Substring((PyObject *)read, 0, 2);
-    }
-    else
-    {
-        return (PyUnicodeObject *)PyUnicode_FromString("");
-    }
-}
-
-PyObject *
-windows_drive(PyObject *module, PyObject *arg)
-{
-    PyUnicodeObject *fspath = _fspath(arg);
-    if (!fspath)
-    {
-        return NULL;
-    }
-    PyUnicodeObject *normalized = _windows_normalize(fspath);
-    Py_DECREF(fspath);
-    if (!normalized)
-    {
-        return NULL;
-    }
-    PyUnicodeObject *drive = _windows_drive(normalized);
-    Py_DECREF(normalized);
-    return (PyObject *)drive;
 }
 
 // MARK: Root
@@ -194,11 +146,11 @@ _windows_name(PyUnicodeObject *arg)
     unsigned int arg_kind = PyUnicode_KIND(arg);
     void *arg_data = PyUnicode_DATA(arg);
 
-    Py_ssize_t unc_index = _windows_unc_index_impl(arg_size, arg_kind, arg_data);
+    Py_ssize_t drive_index = _windows_drive_kind_and_index_impl(arg_size, arg_kind, arg_data).index;
     Py_ssize_t i = arg_size - 1;
 
     // Read until the next slash or the start of the string.
-    while (i >= unc_index && PyUnicode_READ(arg_kind, arg_data, i) != '\\')
+    while (i >= drive_index && PyUnicode_READ(arg_kind, arg_data, i) != '\\')
     {
         i -= 1;
     }
@@ -244,14 +196,14 @@ _windows_parent_index(PyUnicodeObject *arg)
     unsigned int arg_kind = PyUnicode_KIND(arg);
     void *arg_data = PyUnicode_DATA(arg);
 
-    Py_ssize_t unc_index = _windows_unc_index_impl(arg_size, arg_kind, arg_data);
+    Py_ssize_t drive_index = _windows_drive_kind_and_index_impl(arg_size, arg_kind, arg_data).index;
     Py_ssize_t i = arg_size;
-    while (i > unc_index && PyUnicode_READ(arg_kind, arg_data, i - 1) != '\\')
+    while (i > drive_index && PyUnicode_READ(arg_kind, arg_data, i - 1) != '\\')
     {
         i -= 1;
     }
 
-    return i == unc_index ? 0 : i;
+    return i == drive_index ? 0 : i;
 }
 
 PyObject *

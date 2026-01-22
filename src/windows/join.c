@@ -27,7 +27,7 @@ _windows_join(PyObject **args, Py_ssize_t nargs)
     else
     {
         PyUnicodeObject *joined = NULL;
-        PyUnicodeObject **fspaths = malloc(sizeof(PyUnicodeObject *) * nargs);
+        PyUnicodeObject **fspaths = calloc(nargs, sizeof(PyUnicodeObject *));
         Py_ssize_t i = nargs;
         do
         {

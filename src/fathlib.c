@@ -24,8 +24,6 @@ static PyMethodDef PyFathlibModule_methods[] = {
     {"windows_join",        (PyCFunction)windows_join,        METH_FASTCALL, PyDoc_STR("Join parts into a Windows path")          },
     {"windows_concat",      (PyCFunction)windows_concat,      METH_FASTCALL, PyDoc_STR("Concatenate parts into a Windows path")   },
     {"windows_is_absolute", (PyCFunction)windows_is_absolute, METH_O,        PyDoc_STR("Whether the path is absolute")            },
-    {"windows_is_unc",      (PyCFunction)windows_drive,       METH_O,        PyDoc_STR("Get the drive part of a Windows path")    },
-    {"windows_unc",         (PyCFunction)windows_unc,         METH_O,        PyDoc_STR("Get the UNC part of a Windows path")      },
     {"windows_drive",       (PyCFunction)windows_drive,       METH_O,        PyDoc_STR("Get the drive part of a Windows path")    },
     {"windows_root",        (PyCFunction)windows_root,        METH_O,        PyDoc_STR("Get the root part of a Windows path")     },
     {"windows_name",        (PyCFunction)windows_name,        METH_O,        PyDoc_STR("Get the name part of a Windows path")     },

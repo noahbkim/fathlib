@@ -2,6 +2,7 @@
 #include "Python.h"
 
 #include "common.h"
+#include "windows/drive.h"
 #include "windows/fath.h"
 #include "windows/join.h"
 #include "windows/normalize.h"
@@ -186,7 +187,15 @@ PyWindowsFath_is_absolute(PyWindowsFathObject *self)
 PyObject *
 PyWindowsFath_drive(PyWindowsFathObject *self)
 {
-    return (PyObject *)_windows_drive(self->inner);
+    Py_ssize_t index = _windows_drive_index(self->inner);
+    if (index > 0)
+    {
+        return PyUnicode_Substring((PyObject *)self->inner, 0, index);
+    }
+    else
+    {
+        return PyUnicode_FromString("");
+    }
 }
 
 PyObject *
