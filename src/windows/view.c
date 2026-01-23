@@ -19,7 +19,7 @@ _windows_is_absolute(PyUnicodeObject *arg)
     Py_ssize_t arg_size = PyUnicode_GET_LENGTH(arg);
     int arg_kind = PyUnicode_KIND(arg);
     void *arg_data = PyUnicode_DATA(arg);
-    WindowsDriveKindAndIndex drive = _windows_drive_kind_and_index_impl(arg_size, arg_kind, arg_data);
+    WindowsDriveInfo drive = _windows_drive_info_impl(arg_size, arg_kind, arg_data);
     if (drive.index == 0)
     {
         return 0;
@@ -146,7 +146,7 @@ _windows_name(PyUnicodeObject *arg)
     unsigned int arg_kind = PyUnicode_KIND(arg);
     void *arg_data = PyUnicode_DATA(arg);
 
-    Py_ssize_t drive_index = _windows_drive_kind_and_index_impl(arg_size, arg_kind, arg_data).index;
+    Py_ssize_t drive_index = _windows_drive_info_impl(arg_size, arg_kind, arg_data).index;
     Py_ssize_t i = arg_size - 1;
 
     // Read until the next slash or the start of the string.
@@ -196,7 +196,7 @@ _windows_parent_index(PyUnicodeObject *arg)
     unsigned int arg_kind = PyUnicode_KIND(arg);
     void *arg_data = PyUnicode_DATA(arg);
 
-    Py_ssize_t drive_index = _windows_drive_kind_and_index_impl(arg_size, arg_kind, arg_data).index;
+    Py_ssize_t drive_index = _windows_drive_info_impl(arg_size, arg_kind, arg_data).index;
     Py_ssize_t i = arg_size;
     while (i > drive_index && PyUnicode_READ(arg_kind, arg_data, i - 1) != '\\')
     {

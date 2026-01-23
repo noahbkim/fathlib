@@ -17,13 +17,15 @@ typedef enum
 typedef struct
 {
     WindowsDriveKind kind;
+    unsigned int valid : 1;
     Py_ssize_t index;
-} WindowsDriveKindAndIndex;
+} WindowsDriveInfo;
 
-WindowsDriveKindAndIndex _windows_drive_kind_and_index_impl(Py_ssize_t arg_size, unsigned int arg_kind, void *arg_data);
-WindowsDriveKindAndIndex _windows_drive_kind_and_index(PyUnicodeObject *arg);
+WindowsDriveInfo _windows_drive_info_impl(Py_ssize_t arg_size, unsigned int arg_kind, void *arg_data);
+WindowsDriveInfo _windows_drive_info(PyUnicodeObject *arg);
 WindowsDriveKind _windows_drive_kind(PyUnicodeObject *arg);
 Py_ssize_t _windows_drive_index(PyUnicodeObject *arg);
+int _windows_drive_slash(WindowsDriveInfo *drive);
 PyObject *windows_drive(PyObject *module, PyObject *arg);
 
 #endif

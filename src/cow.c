@@ -111,7 +111,7 @@ cow_consume(Cow *self)
 {
     if (self->write)
     {
-        if (self->write_index == self->write_size)
+        if (self->write_index >= self->write_size)
         {
             return self->write;
         }

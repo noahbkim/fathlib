@@ -15,18 +15,21 @@ typedef enum
     WINDOWS_DRIVE_STATE_START_SLASH_SLASH_QUESTION_SLASH_UN,
     WINDOWS_DRIVE_STATE_START_SLASH_SLASH_QUESTION_SLASH_UNC,
     WINDOWS_DRIVE_STATE_START_SLASH_SLASH_DOT,
+    WINDOWS_DRIVE_STATE_START_SLASH_SLASH_DOT_SLASH,
     WINDOWS_DRIVE_STATE_START_OTHER,
     WINDOWS_DRIVE_STATE_UNC_SERVER,
+    WINDOWS_DRIVE_STATE_UNC_SERVER_SLASH,
     WINDOWS_DRIVE_STATE_UNC_SHARE,
     WINDOWS_DRIVE_STATE_DEVICE_LITERAL,
     WINDOWS_DRIVE_STATE_DEVICE_NORMALIZED,
 } WindowsDriveState;
 
-WindowsDriveKindAndIndex
-_windows_drive_kind_and_index_impl(Py_ssize_t arg_size, unsigned int arg_kind, void *arg_data)
+WindowsDriveInfo
+_windows_drive_info_impl(Py_ssize_t arg_size, unsigned int arg_kind, void *arg_data)
 {
-    WindowsDriveKindAndIndex drive;
+    WindowsDriveInfo drive;
     drive.kind = WINDOWS_DRIVE_NONE;
+    drive.valid = 1;
     drive.index = 0;
 
     WindowsDriveState state = WINDOWS_DRIVE_STATE_START;
@@ -53,6 +56,7 @@ _windows_drive_kind_and_index_impl(Py_ssize_t arg_size, unsigned int arg_kind, v
             case '\\':
             case '/':
                 drive.kind = WINDOWS_DRIVE_UNC;
+                drive.valid = 0;
                 state = WINDOWS_DRIVE_STATE_START_SLASH_SLASH;
                 break;
             default:
@@ -82,6 +86,7 @@ _windows_drive_kind_and_index_impl(Py_ssize_t arg_size, unsigned int arg_kind, v
             case '\\':
             case '/':
                 drive.kind = WINDOWS_DRIVE_DEVICE_LITERAL;
+                drive.valid = 0;
                 state = WINDOWS_DRIVE_STATE_START_SLASH_SLASH_QUESTION_SLASH;
                 break;
             default:
@@ -97,9 +102,11 @@ _windows_drive_kind_and_index_impl(Py_ssize_t arg_size, unsigned int arg_kind, v
                 break;
             case 'u':
             case 'U':
+                drive.valid = 1;
                 state = WINDOWS_DRIVE_STATE_START_SLASH_SLASH_QUESTION_SLASH_U;
                 break;
             default:
+                drive.valid = 1;
                 state = WINDOWS_DRIVE_STATE_UNC_SHARE;
             }
             break;
@@ -151,10 +158,23 @@ _windows_drive_kind_and_index_impl(Py_ssize_t arg_size, unsigned int arg_kind, v
             case '\\':
             case '/':
                 drive.kind = WINDOWS_DRIVE_DEVICE_NORMALIZED;
-                state = WINDOWS_DRIVE_STATE_DEVICE_NORMALIZED;
+                drive.valid = 0;
+                state = WINDOWS_DRIVE_STATE_START_SLASH_SLASH_DOT_SLASH;
                 break;
             default:
                 state = WINDOWS_DRIVE_STATE_UNC_SERVER;
+            }
+            break;
+        case WINDOWS_DRIVE_STATE_START_SLASH_SLASH_DOT_SLASH:
+            switch (character)
+            {
+            case '\\':
+            case '/':
+                goto done;
+                break;
+            default:
+                drive.valid = 1;
+                state = WINDOWS_DRIVE_STATE_DEVICE_NORMALIZED;
             }
             break;
         case WINDOWS_DRIVE_STATE_START_OTHER:
@@ -175,9 +195,20 @@ _windows_drive_kind_and_index_impl(Py_ssize_t arg_size, unsigned int arg_kind, v
             {
             case '\\':
             case '/':
-                drive.kind = WINDOWS_DRIVE_UNC;
-                state = WINDOWS_DRIVE_STATE_UNC_SHARE;
+                state = WINDOWS_DRIVE_STATE_UNC_SERVER_SLASH;
                 break;
+            }
+            break;
+        case WINDOWS_DRIVE_STATE_UNC_SERVER_SLASH:
+            switch (character)
+            {
+            case '\\':
+            case '/':
+                goto done;
+                break;
+            default:
+                drive.valid = 1;
+                state = WINDOWS_DRIVE_STATE_UNC_SHARE;
             }
             break;
         case WINDOWS_DRIVE_STATE_UNC_SHARE:
@@ -222,10 +253,10 @@ done:
     }
 }
 
-WindowsDriveKindAndIndex
+WindowsDriveInfo
 _windows_drive_kind_and_index(PyUnicodeObject *arg)
 {
-    return _windows_drive_kind_and_index_impl(PyUnicode_GET_LENGTH(arg), PyUnicode_KIND(arg), PyUnicode_DATA(arg));
+    return _windows_drive_info_impl(PyUnicode_GET_LENGTH(arg), PyUnicode_KIND(arg), PyUnicode_DATA(arg));
 }
 
 WindowsDriveKind
@@ -238,6 +269,23 @@ Py_ssize_t
 _windows_drive_index(PyUnicodeObject *arg)
 {
     return _windows_drive_kind_and_index(arg).index;
+}
+
+int
+_windows_drive_slash(WindowsDriveInfo *drive)
+{
+    if (drive->index == 0 || !drive->valid)
+    {
+        return 0;
+    }
+    switch (drive->kind)
+    {
+    case WINDOWS_DRIVE_VOLUME:
+    case WINDOWS_DRIVE_DEVICE_NORMALIZED:
+        return 0;
+    default:
+        return 1;
+    }
 }
 
 PyObject *

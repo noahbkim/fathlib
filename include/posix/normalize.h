@@ -8,17 +8,17 @@
 
 typedef enum
 {
-    POSIX_NORMALIZE_START,
-    POSIX_NORMALIZE_START_SLASH,
-    POSIX_NORMALIZE_START_SLASH_SLASH,
-    POSIX_NORMALIZE_START_SLASH_SLASH_SLASHES,
-    POSIX_NORMALIZE_PART,
-    POSIX_NORMALIZE_PART_SLASHES,
-    POSIX_NORMALIZE_DOT,
-    POSIX_NORMALIZE_DOT_SLASHES,
-} PosixNormalize;
+    POSIX_NORMALIZE_STATE_START,
+    POSIX_NORMALIZE_STATE_START_SLASH,
+    POSIX_NORMALIZE_STATE_START_SLASH_SLASH,
+    POSIX_NORMALIZE_STATE_START_SLASH_SLASH_SLASHES,
+    POSIX_NORMALIZE_STATE_PART,
+    POSIX_NORMALIZE_STATE_PART_SLASHES,
+    POSIX_NORMALIZE_STATE_DOT,
+    POSIX_NORMALIZE_STATE_DOT_SLASHES,
+} PosixNormalizeState;
 
-int _posix_normalize_impl(Cow *cow, PosixNormalize *state, PyUnicodeObject *read);
+int _posix_normalize_impl(Cow *cow, PosixNormalizeState *state, PyUnicodeObject *read);
 PyUnicodeObject *_posix_normalize(PyUnicodeObject *read);
 PyObject *posix_normalize(PyObject *module, PyObject *read);
 
