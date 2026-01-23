@@ -8,23 +8,20 @@
 
 typedef enum
 {
-    WINDOWS_NORMALIZE_START,
-    WINDOWS_NORMALIZE_START_SLASH,
-    WINDOWS_NORMALIZE_START_SLASH_SLASH,
-    WINDOWS_NORMALIZE_START_SLASH_SLASH_SLASH,
-    WINDOWS_NORMALIZE_START_SLASH_SLASH_SLASH_SLASHES,
-    WINDOWS_NORMALIZE_SERVER,
-    WINDOWS_NORMALIZE_SERVER_SLASH,
-    WINDOWS_NORMALIZE_SERVER_SLASH_SLASHES,
-    WINDOWS_NORMALIZE_SHARE,
-    WINDOWS_NORMALIZE_SHARE_SLASHES,
-    WINDOWS_NORMALIZE_PART,
-    WINDOWS_NORMALIZE_PART_SLASHES,
-    WINDOWS_NORMALIZE_DOT,
-    WINDOWS_NORMALIZE_DOT_SLASHES,
-} WindowsNormalize;
+    WINDOWS_NORMALIZE_STATE_START,
+    WINDOWS_NORMALIZE_STATE_START_SLASHES,
+    WINDOWS_NORMALIZE_STATE_PART,
+    WINDOWS_NORMALIZE_STATE_PART_SLASHES,
+    WINDOWS_NORMALIZE_STATE_DOT,
+    WINDOWS_NORMALIZE_STATE_DOT_SLASHES,
+} WindowsNormalizeState;
 
-int _windows_normalize_impl(Cow *cow, WindowsNormalize *state, PyUnicodeObject *read);
+int _windows_normalize_impl(Cow *cow,
+                            WindowsNormalizeState *state,
+                            Py_ssize_t read_size,
+                            unsigned int read_kind,
+                            void *read_data,
+                            Py_ssize_t read_index);
 PyUnicodeObject *_windows_normalize(PyUnicodeObject *read);
 PyObject *windows_normalize(PyObject *module, PyObject *read);
 
